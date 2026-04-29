@@ -1,4 +1,4 @@
-package com.intellimarket.api.iam.model.dto.response;
+package com.intellimarket.api.iam.dto.response;
 
 import com.intellimarket.api.iam.model.Role;
 

@@ -1,4 +1,4 @@
-package com.intellimarket.api.iam.model.dto.request;
+package com.intellimarket.api.iam.dto.request;
 
 import com.intellimarket.api.iam.model.Role;
 import jakarta.validation.constraints.Email;
