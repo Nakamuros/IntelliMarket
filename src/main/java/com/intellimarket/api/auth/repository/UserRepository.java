@@ -1,6 +1,6 @@
-package com.intellimarket.api.iam.model.repository;
+package com.intellimarket.api.auth.model.repository;
 
-import com.intellimarket.api.iam.model.User;
+import com.intellimarket.api.auth.model.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.Optional;
 

@@ -1,10 +1,9 @@
-package com.intellimarket.api.iam.dto.request;
+package com.intellimarket.api.auth.dto.request;
 
-import com.intellimarket.api.iam.model.Role;
+import com.intellimarket.api.auth.model.Role;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Size;
 
 public record RegisterRequest(
         @NotBlank(message = "El email es obligatorio")

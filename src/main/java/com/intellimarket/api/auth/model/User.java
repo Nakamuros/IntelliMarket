@@ -1,4 +1,4 @@
-package com.intellimarket.api.iam.model;
+package com.intellimarket.api.auth.model;
 
 import jakarta.persistence.*;
 import lombok.*;
