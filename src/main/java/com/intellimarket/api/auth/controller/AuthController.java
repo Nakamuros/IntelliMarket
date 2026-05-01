@@ -1,5 +1,6 @@
 package com.intellimarket.api.auth.controller;
 
+import com.intellimarket.api.auth.dto.LoginRequest;
 import com.intellimarket.api.auth.dto.RegisterRequest;
 import com.intellimarket.api.auth.dto.AuthResponse;
 import com.intellimarket.api.auth.service.IAuthService;
@@ -19,5 +20,10 @@ public class AuthController {
     @PostMapping("/register")
     public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest request) {
         return new ResponseEntity<>(authService.register(request), HttpStatus.CREATED);
+    }
+
+    @PostMapping("/login")
+    public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
+        return ResponseEntity.ok(authService.login(request)); // ok() devuelve HTTP 200
     }
 }
