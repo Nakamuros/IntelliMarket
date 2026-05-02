@@ -5,6 +5,8 @@ import com.intellimarket.api.auth.dto.RegisterRequest;
 import com.intellimarket.api.auth.dto.AuthResponse;
 
 public interface IAuthService {
-    AuthResponse register(RegisterRequest request);
+    AuthResponse registerCustomer(RegisterRequest request);
+    AuthResponse registerOwner(RegisterRequest request);
+    AuthResponse registerAdmin(RegisterRequest request);
     AuthResponse login(LoginRequest request);
 }
