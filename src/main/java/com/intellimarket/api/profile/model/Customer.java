@@ -5,32 +5,26 @@ import jakarta.persistence.*;
 import lombok.*;
 
 @Entity
-@Table(name = "customers")
+@Table(name = "customer_profile") // Respetando el nombre del diagrama
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-
 public class Customer {
+
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private Long id; // Representa el user_id (Bigint). No lleva @GeneratedValue.
 
-    @Column(nullable = false, length = 30) // Regla de Negocio RN-05
-    private String storeName;
+    // Relación 1 a 1 obligatoria con USERS
+    @OneToOne(fetch = FetchType.LAZY)
+    @MapsId // Le dice a Hibernate: "Usa el ID de 'user' como mi propia llave primaria (PK/FK)"
+    @JoinColumn(name = "user_id")
+    private User user;
 
-    @Column(nullable = false, length = 30) // Regla de Negocio RN-05
-    private String storeAddress;
-
-    @Column(length = 255)
-    private String storeLogoUrl;
-
-    @Column(length = 15)
+    @Column(name = "phone", length = 15)
     private String phone;
 
-    // Relación 1 a 1 con tu tabla de usuarios
-    @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", referencedColumnName = "id", nullable = false, unique = true)
-    private User user;
+    @Column(name = "address", length = 255)
+    private String address;
 }
