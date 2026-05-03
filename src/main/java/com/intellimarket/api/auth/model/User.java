@@ -1,4 +1,4 @@
-package com.intellimarket.api.iam.model;
+package com.intellimarket.api.auth.model;
 
 import jakarta.persistence.*;
 import lombok.*;
@@ -21,6 +21,12 @@ public class User {
 
     @Column(nullable = false)
     private String password;
+
+    @Column(nullable = false)
+    private String firstName;
+
+    @Column(nullable = false)
+    private String lastName;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
