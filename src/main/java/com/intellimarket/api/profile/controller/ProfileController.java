@@ -7,6 +7,8 @@ import com.intellimarket.api.profile.service.IProfileService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -17,30 +19,34 @@ public class ProfileController {
     private final IProfileService profileService;
 
     // --- Endpoints para Customers ---
-
-    @GetMapping("/customer/{userId}")
-    public ResponseEntity<ProfileResponse> getCustomerProfile(@PathVariable Long userId) {
-        return ResponseEntity.ok(profileService.getCustomerProfile(userId));
+    @PreAuthorize("hasRole('CUSTOMER')")
+    @GetMapping("/customer/me")
+    public ResponseEntity<ProfileResponse> getMyCustomerProfile(Authentication authentication) {
+        String email = authentication.getName(); // Extrae el correo del token JWT
+        return ResponseEntity.ok(profileService.getCustomerProfileByEmail(email));
     }
-
-    @PutMapping("/customer/{userId}")
-    public ResponseEntity<ProfileResponse> updateCustomerProfile(
-            @PathVariable Long userId,
+    @PreAuthorize("hasRole('CUSTOMER')")
+    @PutMapping("/customer/me")
+    public ResponseEntity<ProfileResponse> updateMyCustomerProfile(
+            Authentication authentication,
             @Valid @RequestBody CustomerProfileRequest request) {
-        return ResponseEntity.ok(profileService.updateCustomerProfile(userId, request));
+        String email = authentication.getName();
+        return ResponseEntity.ok(profileService.updateCustomerProfileByEmail(email, request));
     }
 
     // --- Endpoints para Owners ---
-
-    @GetMapping("/owner/{userId}")
-    public ResponseEntity<ProfileResponse> getOwnerProfile(@PathVariable Long userId) {
-        return ResponseEntity.ok(profileService.getOwnerProfile(userId));
+    @PreAuthorize("hasRole('CUSTOMER')")
+    @GetMapping("/owner/me")
+    public ResponseEntity<ProfileResponse> getMyOwnerProfile(Authentication authentication) {
+        String email = authentication.getName();
+        return ResponseEntity.ok(profileService.getOwnerProfileByEmail(email));
     }
-
-    @PutMapping("/owner/{userId}")
-    public ResponseEntity<ProfileResponse> updateOwnerProfile(
-            @PathVariable Long userId,
+    @PreAuthorize("hasRole('CUSTOMER')")
+    @PutMapping("/owner/me")
+    public ResponseEntity<ProfileResponse> updateMyOwnerProfile(
+            Authentication authentication,
             @Valid @RequestBody OwnerProfileRequest request) {
-        return ResponseEntity.ok(profileService.updateOwnerProfile(userId, request));
+        String email = authentication.getName();
+        return ResponseEntity.ok(profileService.updateOwnerProfileByEmail(email, request));
     }
 }

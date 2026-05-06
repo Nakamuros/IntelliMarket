@@ -5,9 +5,9 @@ import com.intellimarket.api.profile.dto.OwnerProfileRequest;
 import com.intellimarket.api.profile.dto.ProfileResponse;
 
 public interface IProfileService {
-    ProfileResponse getCustomerProfile(Long userId);
-    ProfileResponse updateCustomerProfile(Long userId, CustomerProfileRequest request);
+    ProfileResponse getCustomerProfileByEmail(String email);
+    ProfileResponse updateCustomerProfileByEmail(String email, CustomerProfileRequest request);
 
-    ProfileResponse getOwnerProfile(Long userId);
-    ProfileResponse updateOwnerProfile(Long userId, OwnerProfileRequest request);
+    ProfileResponse getOwnerProfileByEmail(String email);
+    ProfileResponse updateOwnerProfileByEmail(String email, OwnerProfileRequest request);
 }
