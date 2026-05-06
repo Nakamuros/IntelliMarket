@@ -41,6 +41,21 @@ public class GlobalExceptionHandler {
                 "Error interno del servidor", req, null);
     }
 
+    // 1. CAPTURADOR DE SEGURIDAD: Cuando el @PreAuthorize bloquea a alguien
+    @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
+    public ResponseEntity<ErrorResponse> handleAccessDenied(
+            org.springframework.security.access.AccessDeniedException ex, HttpServletRequest req) {
+        return build(HttpStatus.FORBIDDEN, "No tienes permisos para realizar esta acción.", req, null);
+    }
+
+    // 2. CAPTURADOR DE ERRORES EN TIEMPO DE EJECUCIÓN (Como tu "Perfil no encontrado")
+    @ExceptionHandler(RuntimeException.class)
+    public ResponseEntity<ErrorResponse> handleRuntime(
+            RuntimeException ex, HttpServletRequest req) {
+        // Podríamos enviarlo como 404 porque el mensaje es "Perfil no encontrado"
+        return build(HttpStatus.NOT_FOUND, ex.getMessage(), req, null);
+    }
+
     private ResponseEntity<ErrorResponse> build(HttpStatus status, String message,
                                                 HttpServletRequest req,
                                                 List<String> details) {

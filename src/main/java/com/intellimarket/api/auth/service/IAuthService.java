@@ -9,4 +9,6 @@ public interface IAuthService {
     AuthResponse registerOwner(RegisterRequest request);
     AuthResponse registerAdmin(RegisterRequest request);
     AuthResponse login(LoginRequest request);
+    AuthResponse refresh(String refreshToken);
+    void logout(String refreshToken);
 }
