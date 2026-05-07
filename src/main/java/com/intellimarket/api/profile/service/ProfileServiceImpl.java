@@ -38,8 +38,8 @@ public class ProfileServiceImpl implements IProfileService {
         Customer customer = customerRepository.findByUserId(user.getId()).orElseThrow(() -> new RuntimeException("Perfil no encontrado"));
 
         // Actualiza los campos que tengas en tu Customer (esto es un ejemplo)
-        // customer.setPhone(request.getPhone());
-        // customer.setAddress(request.getAddress());
+        customer.setPhone(request.phone());
+        customer.setAddress(request.address());
 
         return profileMapper.toResponse(customerRepository.save(customer)); // <-- Cambia el nombre aquí también
     }
@@ -61,8 +61,8 @@ public class ProfileServiceImpl implements IProfileService {
         Owner owner = ownerRepository.findByUserId(user.getId()).orElseThrow(() -> new RuntimeException("Perfil no encontrado"));
 
         // Actualiza los campos que tengas en tu Owner
-        // owner.setPhone(request.getPhone());
-        // owner.setStoreName(request.getStoreName());
+        owner.setPhone(request.phone());
+        owner.setDni(request.dni());
 
         return profileMapper.toResponse(ownerRepository.save(owner)); // <-- Cambia el nombre aquí también
     }
