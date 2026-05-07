@@ -25,6 +25,6 @@ public class Owner {
     @Column(name = "phone", length = 15)
     private String phone;
 
-    @Column(name = "dni", length = 15)
+    @Column(name = "dni", length = 8)
     private String dni;
 }
