@@ -1,44 +1,31 @@
 package com.intellimarket.api.config;
 
-import com.intellimarket.api.auth.security.JwtAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
-import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 @Configuration
-@EnableMethodSecurity // Permite usar @PreAuthorize en nuestros controladores
+@EnableWebSecurity
+@EnableMethodSecurity
 public class SecurityConfig {
 
-    // 👇 AQUÍ ESTÁ LA MAGIA: Pasamos el filtro como parámetro del método
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http, JwtAuthenticationFilter jwtFilter) throws Exception {
-        http
-                // 1. Apagamos CSRF porque usaremos Tokens
-                .csrf(AbstractHttpConfigurer::disable)
-
-                // 2. Apagamos el estado (Stateless)
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-
-                // 3. Configuramos las reglas de acceso
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        return http
+                .csrf(csrf -> csrf.disable()) // Desactivamos la protección para Postman
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/v1/auth/**").permitAll()
-                        .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
+                        // Abrimos la puerta a TODO lo que empiece con /api/v1/
+                        .requestMatchers("/api/v1/**").permitAll() 
                         .anyRequest().authenticated()
                 )
-
-                // 4. Ponemos a nuestro guardia ANTES del guardia por defecto
-                .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
-
-        return http.build();
+                .build();
     }
 
     @Bean
