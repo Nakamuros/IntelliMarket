@@ -3,13 +3,14 @@ package com.intellimarket.api.inventory.service;
 import com.intellimarket.api.inventory.dto.ProductsRequest;
 import com.intellimarket.api.inventory.dto.ProductsResponse;
 import com.intellimarket.api.inventory.mapper.ProductsMapper;
-import com.intellimarket.api.inventory.model.Inventory;
-import com.intellimarket.api.inventory.model.Inventory_Movements;
-import com.intellimarket.api.inventory.model.Products;
+import com.intellimarket.api.inventory.model.*;
 import com.intellimarket.api.inventory.repository.InventoryRepository;
 import com.intellimarket.api.inventory.repository.Inventory_MovementsRepository;
 import com.intellimarket.api.inventory.repository.ProductsRepository;
+import com.intellimarket.api.shared.exception.BusinessRuleException;
 import com.intellimarket.api.shared.exception.ResourceNotFoundException;
+import com.intellimarket.api.stores.model.Stores;
+import com.intellimarket.api.stores.repository.StoresRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,21 +24,29 @@ public class InventoryService implements IInventoryService {
     private final InventoryRepository inventoryRepository;
     private final Inventory_MovementsRepository inventoryMovementsRepository;
     private final ProductsMapper productsMapper;
+    private final StoresRepository storesRepository;
 
     @Override
     @Transactional
     // Crear prodducto
-    public ProductsResponse createProduct(ProductsRequest request) {
+    public ProductsResponse createProduct(Long store_id, ProductsRequest request) {
         // 1. Guardar el producto en su catálogo (Products)
+        // Catálogo global
         Products product = productsRepository.save(Products.builder().name(request.name())
         .category(request.category()).description(request.description()).build());
 
+        Stores store = storesRepository.findById(store_id)
+                .orElseThrow(() -> new ResourceNotFoundException("Tienda no encontrada"));
+
         // Guardar producto en bodega de tienda o su inventario (Inventory)
         Inventory inventory = inventoryRepository.save(Inventory.builder().product(product).
-                store(request.store_id()).stock(request.stock()).price(request.price()).build());
+                store(store).stock(request.stock()).price(request.price()).build());
 
         // Registrar movimiento de historial en Inventory_Movements
-        saveMovement(product, request.store_id(), request.stock(), "IN", "INITIAL_LOAD");
+        // Tipo de movimiento: Compra
+        // Referencia de tipo: Proveedor, compra a proveedor de producto, producto agregado
+        saveMovement(product, store, request.stock(),
+                Type.PURCHASE, Reference_Type.PROVIDER);
 
         return productsMapper.toResponse(product, inventory);
     }
@@ -75,31 +84,40 @@ public class InventoryService implements IInventoryService {
     @Override
     // Alerta de stock crítico con productos con menos de 10 unidades
     public List<ProductsResponse> getCriticalStock(Long store_id){
-        return inventoryRepository.findByStoreIdAndStockLessThan(store_id, 10).stream().
-                map(inv->productsMapper.toResponse(inv.getProduct(), inv)).toList();
+        List<Inventory> criticalItems = inventoryRepository.findByStoreIdAndStockLessThan(store_id, 10);
+
+        // Eliminamos el throw para no generar un 404 innecesario.
+        // El Controller ya maneja el mensaje si la lista viene vacía.
+        return criticalItems.stream()
+                .map(inv -> productsMapper.toResponse(inv.getProduct(), inv))
+                .toList();
     }
 
     @Override
     @Transactional
     // US-09: ELiminar producto
     public void deleteProduct(Long product_id, Long store_id){
-        Inventory inventory = inventoryRepository.findByProductIdAndStoreId(product_id, store_id).
-                orElseThrow(()-> new ResourceNotFoundException("No se encontró el registro"));
+        Stores store = storesRepository.findById(store_id)
+                .orElseThrow(() -> new ResourceNotFoundException("Tienda no encontrada"));
 
-        // US-09: Solo borrar si stock es 0
-        /*if (inventory.getStock() == 0) {
-            inventoryRepository.delete(inventory);
-        } else {
-            throw new IllegalStateException("No se puede eliminar un producto con stock.");
-        }*/
+        Inventory inventory = inventoryRepository.findByProductIdAndStoreId(product_id, store_id)
+                .orElseThrow(()-> new ResourceNotFoundException("No se encontró el registro en el inventario"));
 
+        if (inventory.getStock() != 0) {
+            throw new BusinessRuleException("No se puede eliminar un producto que aún tiene " + inventory.getStock() + " unidades en stock.");
+        }
+
+        // 1. REGISTRAR MOVIMIENTO ANTES DE BORRAR
+        saveMovement(inventory.getProduct(), store, 0, Type.ADJUSTMENT, Reference_Type.ADJUSTMENT);
+
+        // 2. AHORA SÍ BORRAMOS
         inventoryRepository.delete(inventory);
     }
 
-    private void saveMovement(Products p, Long sId, Integer qty, String type, String ref) {
+    private void saveMovement(Products p, Stores sId, Integer qty, Type type, Reference_Type ref) {
         Inventory_Movements m = Inventory_Movements.builder()
-                .product_id(p)
-                .store_id(sId)
+                .product(p)
+                .store(sId)
                 .quantity(qty)
                 .type(type)
                 .reference_type(ref)

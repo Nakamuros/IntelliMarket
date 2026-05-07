@@ -18,8 +18,9 @@ public class Products {
     @Column(nullable=false, length=130)
     private String description; // Descripción de un producto
 
-    @Column(nullable=false)
-    private String category; // Nueva
+    @Enumerated(EnumType.STRING)
+    @Column(name = "category", nullable = false)
+    private Category category;
 
     @Column(name = "created_at")
     private LocalDateTime createdAt; // Timestamp

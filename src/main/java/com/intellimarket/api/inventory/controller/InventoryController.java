@@ -13,7 +13,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/inventory")
@@ -30,10 +32,17 @@ public class InventoryController {
             @ApiResponse(responseCode = "400", description = "Datos de entrada inválidos")
     })
     @PostMapping("/products")
-    public ResponseEntity<ProductsResponse> create(@Valid @RequestBody ProductsRequest request){
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(inventoryService.createProduct(request));
-        //[cite: 1]
+    public ResponseEntity<?> create(@RequestParam Long storeId,
+                                                   @Valid @RequestBody ProductsRequest request){
+        /*return ResponseEntity.status(HttpStatus.CREATED)
+                .body(inventoryService.createProduct(storeId, request));*/
+        ProductsResponse response = inventoryService.createProduct(storeId, request);
+
+        Map<String, Object> body = new HashMap<>();
+        body.put("message", "Creación correcta");
+        body.put("data", response);
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(body);
     }
 
     @Operation(summary = "US-06: Edición de Producto y Stock")
@@ -43,18 +52,20 @@ public class InventoryController {
     })
     @PutMapping("/products/{productId}")
     // De inventory a ruta de products, esta al id de products para identificación
-    public ResponseEntity<ProductsResponse> update(
-            @PathVariable Long productId,
-            @PathVariable Long storeId,
-            @Valid @RequestBody ProductsRequest request) {
-        return ResponseEntity.ok(inventoryService.updateProduct(productId, storeId, request));
-        //[cite: 1]
+    public ResponseEntity<?> update(@PathVariable Long productId, @RequestParam Long storeId, @Valid @RequestBody ProductsRequest request) {
+        ProductsResponse response = inventoryService.updateProduct(productId, storeId, request);
+
+        Map<String, Object> body = new HashMap<>();
+        body.put("message", "Edición correcta");
+        body.put("data", response);
+
+        return ResponseEntity.ok(body);
     }
 
     @Operation(summary = "US-07: Consulta de stock real por tienda o bodega")
     @ApiResponse(responseCode = "200", description = "Lista de stock recuperada")
     @GetMapping("/stock")
-    public ResponseEntity<List<ProductsResponse>> listStock(@PathVariable Long storeId){
+    public ResponseEntity<List<ProductsResponse>> listStock(@RequestParam Long storeId){
         return ResponseEntity.ok(inventoryService.getStockByStore(storeId));
         //[cite: 1]
     }
@@ -62,20 +73,31 @@ public class InventoryController {
     @Operation(summary = "US-08: Alertas de Stock Crítico")
     @ApiResponse(responseCode = "200", description = "Lista de alertas generada")
     @GetMapping("/alerts")
-    public ResponseEntity<List<ProductsResponse>> listAlerts(@PathVariable Long storeId) {
-        return ResponseEntity.ok(inventoryService.getCriticalStock(storeId));
-        //[cite: 1]
+    public ResponseEntity<?> listAlerts(@RequestParam Long storeId) {
+        List<ProductsResponse> alerts = inventoryService.getCriticalStock(storeId);
+
+        if (alerts.isEmpty()) {
+            Map<String, String> response = new HashMap<>();
+            response.put("message", "No se encontraron alertas de stock en su tienda");
+            return ResponseEntity.ok(response);
+        }
+
+        return ResponseEntity.ok(alerts);
     }
 
     @Operation(summary = "US-09: Eliminación por Agotamiento")
     @ApiResponses({
-            @ApiResponse(responseCode = "204", description = "Producto eliminado o retirado del inventario"),
+            @ApiResponse(responseCode = "200", description = "Producto eliminado correctamente"),
+            @ApiResponse(responseCode = "409", description = "No se puede eliminar un producto con stock"),
             @ApiResponse(responseCode = "404", description = "Relación producto-tienda no encontrada")
     })
     @DeleteMapping("/products/{productId}")
-    public ResponseEntity<Void> delete(@PathVariable Long productId, @PathVariable Long storeId) {
+    public ResponseEntity<?> delete(@PathVariable Long productId, @RequestParam Long storeId) {
         inventoryService.deleteProduct(productId, storeId);
-        return ResponseEntity.noContent().build();
-        //[cite: 1]
+
+        Map<String, String> response = new HashMap<>();
+        response.put("message", "Producto eliminado correctamente");
+
+        return ResponseEntity.ok(response);
     }
 }

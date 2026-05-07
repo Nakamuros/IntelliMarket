@@ -1,5 +1,6 @@
 package com.intellimarket.api.inventory.model;
 
+import com.intellimarket.api.stores.model.Stores;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -20,22 +21,25 @@ public class Inventory_Movements {
 
     @ManyToOne
     @JoinColumn(name = "product_id", nullable = false)
-    private Products product_id; // Relación: Products affect Inventory_Movements
+    private Products product; // Relación: Products affect Inventory_Movements
 
-    @Column(name = "store_id", nullable = false)
-    private Long store_id;
+    @ManyToOne
+    @JoinColumn(name = "store_id", nullable = false)
+    private Stores store;
 
     @Column(nullable = false)
     private Integer quantity;
 
-    @Column(nullable = false)
-    private String type;
+    @Enumerated(EnumType.STRING)
+    @Column(name="type", nullable = false)
+    private Type type;
 
     @Column(name = "reference_id")
     private Long reference_id;
 
-    @Column(name = "reference_type")
-    private String reference_type;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "reference_type", nullable=false)
+    private Reference_Type reference_type;
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;
