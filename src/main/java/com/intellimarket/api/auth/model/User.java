@@ -1,3 +1,4 @@
+
 package com.intellimarket.api.auth.model;
 
 import jakarta.persistence.*;

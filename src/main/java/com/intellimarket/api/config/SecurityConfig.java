@@ -18,7 +18,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @EnableMethodSecurity // Permite usar @PreAuthorize en nuestros controladores
 public class SecurityConfig {
 
-    // 👇 AQUÍ ESTÁ LA MAGIA: Pasamos el filtro como parámetro del método
+    // 👇 AQUÍ ESTÁ LA MAGIA: Pasamos el filtro como parámetro del metodo
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http, JwtAuthenticationFilter jwtFilter) throws Exception {
         http

@@ -1,3 +1,4 @@
+
 package com.intellimarket.api.profile.model;
 
 import com.intellimarket.api.auth.model.User;
