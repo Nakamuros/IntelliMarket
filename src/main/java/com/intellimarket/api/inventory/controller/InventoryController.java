@@ -85,19 +85,19 @@ public class InventoryController {
         return ResponseEntity.ok(alerts);
     }
 
-    @Operation(summary = "US-09: Eliminación por Agotamiento")
+    /*@Operation(summary = "US-09: Eliminación por Agotamiento")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Producto eliminado correctamente"),
             @ApiResponse(responseCode = "409", description = "No se puede eliminar un producto con stock"),
             @ApiResponse(responseCode = "404", description = "Relación producto-tienda no encontrada")
     })
     @DeleteMapping("/products/{productId}")
-    public ResponseEntity<?> delete(@PathVariable Long productId, @RequestParam Long storeId) {
-        inventoryService.deleteProduct(productId, storeId);
+    public ResponseEntity<?> changeStatus(@RequestParam Long storeId) {
+        inventoryService.changeState(storeId);
 
         Map<String, String> response = new HashMap<>();
-        response.put("message", "Producto eliminado correctamente");
+        response.put("message", "Estado de ");
 
         return ResponseEntity.ok(response);
-    }
+    }*/
 }

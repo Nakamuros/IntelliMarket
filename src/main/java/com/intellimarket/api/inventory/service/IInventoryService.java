@@ -3,6 +3,7 @@ package com.intellimarket.api.inventory.service;
 import com.intellimarket.api.inventory.dto.ProductsRequest;
 import com.intellimarket.api.inventory.dto.ProductsResponse;
 
+import java.math.BigInteger;
 import java.util.List;
 
 public interface IInventoryService {
@@ -18,6 +19,5 @@ public interface IInventoryService {
     // US-08: Alerta de stock crítico en productos (menor a 10 unidades)
     List<ProductsResponse> getCriticalStock(Long store_Id);
 
-    // US-09: Eliminar producto basándonos en su ID, el de tienda
-    void deleteProduct(Long productId, Long store_Id);
+    // US-09: Cambiar estado automáticamente en productos cuando se agotan
 }

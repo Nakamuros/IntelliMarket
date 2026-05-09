@@ -15,6 +15,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigInteger;
 import java.util.List;
 
 @Service
@@ -40,7 +41,7 @@ public class InventoryService implements IInventoryService {
 
         // Guardar producto en bodega de tienda o su inventario (Inventory)
         Inventory inventory = inventoryRepository.save(Inventory.builder().product(product).
-                store(store).stock(request.stock()).price(request.price()).build());
+                store(store).stock(request.stock()).state(1).price(request.price()).build());
 
         // Registrar movimiento de historial en Inventory_Movements
         // Tipo de movimiento: Compra
@@ -58,12 +59,13 @@ public class InventoryService implements IInventoryService {
         Products product = productsRepository.findById(product_id).orElseThrow(()-> new
                 ResourceNotFoundException("Producto no existe"));
 
-        Inventory inventory = inventoryRepository.findByProductIdAndStoreId(product_id, store_id).
+        Inventory inventory = inventoryRepository.findByProductIdAndStoreIdAndState(product_id, store_id, 1).
                 orElseThrow(()-> new ResourceNotFoundException("Producto no asignado a esta tienda"));
 
         // Actualizamos según la US-06
         product.setDescription(request.description());
         product.setName(request.name());
+        inventory.setStock(request.stock());
         product.setCategory(request.category());
         inventory.setPrice(request.price());
 
@@ -77,14 +79,14 @@ public class InventoryService implements IInventoryService {
     // Stock de productos por tienda
     public List<ProductsResponse> getStockByStore(Long store_id){
         // US-07
-        return inventoryRepository.findByStoreId(store_id).stream().map(inv->productsMapper.
+        return inventoryRepository.findByStoreIdAndState(store_id, 1).stream().map(inv->productsMapper.
                 toResponse(inv.getProduct(), inv)).toList();
     }
 
     @Override
     // Alerta de stock crítico con productos con menos de 10 unidades
     public List<ProductsResponse> getCriticalStock(Long store_id){
-        List<Inventory> criticalItems = inventoryRepository.findByStoreIdAndStockLessThan(store_id, 10);
+        List<Inventory> criticalItems = inventoryRepository.findByStoreIdAndStockLessThanAndState(store_id, 10, 1);
 
         // Eliminamos el throw para no generar un 404 innecesario.
         // El Controller ya maneja el mensaje si la lista viene vacía.
@@ -93,26 +95,9 @@ public class InventoryService implements IInventoryService {
                 .toList();
     }
 
-    @Override
-    @Transactional
-    // US-09: ELiminar producto
-    public void deleteProduct(Long product_id, Long store_id){
-        Stores store = storesRepository.findById(store_id)
-                .orElseThrow(() -> new ResourceNotFoundException("Tienda no encontrada"));
+    //@Override
+    // US-09: El estado cambia
 
-        Inventory inventory = inventoryRepository.findByProductIdAndStoreId(product_id, store_id)
-                .orElseThrow(()-> new ResourceNotFoundException("No se encontró el registro en el inventario"));
-
-        if (inventory.getStock() != 0) {
-            throw new BusinessRuleException("No se puede eliminar un producto que aún tiene " + inventory.getStock() + " unidades en stock.");
-        }
-
-        // 1. REGISTRAR MOVIMIENTO ANTES DE BORRAR
-        saveMovement(inventory.getProduct(), store, 0, Type.ADJUSTMENT, Reference_Type.ADJUSTMENT);
-
-        // 2. AHORA SÍ BORRAMOS
-        inventoryRepository.delete(inventory);
-    }
 
     private void saveMovement(Products p, Stores sId, Integer qty, Type type, Reference_Type ref) {
         Inventory_Movements m = Inventory_Movements.builder()

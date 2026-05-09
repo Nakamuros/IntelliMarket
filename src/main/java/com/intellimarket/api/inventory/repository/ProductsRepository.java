@@ -3,6 +3,8 @@ package com.intellimarket.api.inventory.repository;
 import com.intellimarket.api.inventory.model.Category;
 import com.intellimarket.api.inventory.model.Products;
 import org.springframework.data.jpa.repository.JpaRepository;
+
+import java.math.BigInteger;
 import java.util.List;
 
 public interface ProductsRepository extends JpaRepository<Products, Long> {

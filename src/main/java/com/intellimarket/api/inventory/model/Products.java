@@ -2,6 +2,7 @@ package com.intellimarket.api.inventory.model;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.math.BigInteger;
 import java.time.LocalDateTime;
 
 @Entity
@@ -21,6 +22,7 @@ public class Products {
     @Enumerated(EnumType.STRING)
     @Column(name = "category", nullable = false)
     private Category category;
+
 
     @Column(name = "created_at")
     private LocalDateTime createdAt; // Timestamp

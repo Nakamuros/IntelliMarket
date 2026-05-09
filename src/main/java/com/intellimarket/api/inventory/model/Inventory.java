@@ -8,6 +8,7 @@ import lombok.*;
 import org.apache.catalina.Store;
 
 import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.time.LocalDateTime;
 
 @Entity
@@ -37,6 +38,10 @@ public class Inventory {
 
     @Column(nullable = false)
     private Integer stock;
+
+    //@Enumerated(EnumType.STRING)
+    @Column(name = "state", nullable = false)
+    private Integer state;
 
     @DecimalMin("0.10")
     @DecimalMax("200.00")
