@@ -9,6 +9,8 @@ import com.intellimarket.api.inventory.repository.Inventory_MovementsRepository;
 import com.intellimarket.api.inventory.repository.ProductsRepository;
 import com.intellimarket.api.shared.exception.BusinessRuleException;
 import com.intellimarket.api.shared.exception.ResourceNotFoundException;
+import com.intellimarket.api.store.model.Store;
+import com.intellimarket.api.store.repository.StoreRepository;
 import com.intellimarket.api.stores.model.Stores;
 import com.intellimarket.api.stores.repository.StoresRepository;
 import lombok.RequiredArgsConstructor;
@@ -25,7 +27,7 @@ public class InventoryService implements IInventoryService {
     private final InventoryRepository inventoryRepository;
     private final Inventory_MovementsRepository inventoryMovementsRepository;
     private final ProductsMapper productsMapper;
-    private final StoresRepository storesRepository;
+    private final StoreRepository storesRepository;
 
     @Override
     @Transactional
@@ -36,7 +38,7 @@ public class InventoryService implements IInventoryService {
         Products product = productsRepository.save(Products.builder().name(request.name())
         .category(request.category()).description(request.description()).build());
 
-        Stores store = storesRepository.findById(store_id)
+        Store store = storesRepository.findById(store_id)
                 .orElseThrow(() -> new ResourceNotFoundException("Tienda no encontrada"));
 
         // Guardar producto en bodega de tienda o su inventario (Inventory)
@@ -99,7 +101,7 @@ public class InventoryService implements IInventoryService {
     // US-09: El estado cambia
 
 
-    private void saveMovement(Products p, Stores sId, Integer qty, Type type, Reference_Type ref) {
+    private void saveMovement(Products p, Store sId, Integer qty, Type type, Reference_Type ref) {
         Inventory_Movements m = Inventory_Movements.builder()
                 .product(p)
                 .store(sId)

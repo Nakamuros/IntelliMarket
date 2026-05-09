@@ -1,6 +1,6 @@
 package com.intellimarket.api.inventory.model;
 
-import com.intellimarket.api.stores.model.Stores;
+import com.intellimarket.api.store.model.Store;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -25,7 +25,7 @@ public class Inventory_Movements {
 
     @ManyToOne
     @JoinColumn(name = "store_id", nullable = false)
-    private Stores store;
+    private Store store;
 
     @Column(nullable = false)
     private Integer quantity;

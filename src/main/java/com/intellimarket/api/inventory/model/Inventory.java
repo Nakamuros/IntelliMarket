@@ -1,11 +1,10 @@
 package com.intellimarket.api.inventory.model;
 
-import com.intellimarket.api.stores.model.Stores;
+import com.intellimarket.api.store.model.Store;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import lombok.*;
-import org.apache.catalina.Store;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
@@ -32,7 +31,7 @@ public class Inventory {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "store_id", nullable = false)
     //@Column(name = "store_id", nullable = false)
-    private Stores store; // ID de la tienda (Store has Inventory)
+    private Store store; // ID de la tienda (Store has Inventory)
     //private Long storeId;
     // Store
 
