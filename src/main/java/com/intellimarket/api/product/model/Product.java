@@ -19,20 +19,28 @@ public class Product {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, length = 100)
+    @Column(nullable = false, length = 60)
     private String name;
 
     @Column(length = 50)
     private String category;
 
-    @Column(columnDefinition = "TEXT")
+    @Column(length = 130)
     private String description;
 
-    @Column(columnDefinition = "")
+    @Column
     private String image;
 
-    @Column(name = "unit_price")
+    @Column(name = "unit_price", nullable = false, precision = 10, scale = 2)
     private BigDecimal unitPrice;
+
+    @Column(nullable = false)
+    @Builder.Default
+    private Integer stock = 0;
+
+    @Column(nullable = false)
+    @Builder.Default
+    private Integer status = 1; // 1: Disponible, 0: Agotado
 
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

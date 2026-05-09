@@ -22,7 +22,7 @@ public class Store {
     @JoinColumn(name = "owner_id", nullable = false)
     private User owner;
 
-    @Column(nullable = false, length = 100)
+    @Column(nullable = false, length = 30)
     private String name;
 
     @Column(nullable = false)

@@ -12,6 +12,7 @@ import com.intellimarket.api.store.model.Store;
 import com.intellimarket.api.order.service.IOrderService;
 import com.intellimarket.api.order.dto.CartResponseDTO;
 import com.intellimarket.api.store.repository.StoreRepository;
+import com.intellimarket.api.order.exception.InsufficientStockException;
 import com.intellimarket.api.shared.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -77,6 +78,17 @@ public class OrderServiceImpl implements IOrderService {
         // paso 2: buscar el producto
         Product product = productRepository.findById(request.productId()).
                 orElseThrow(()-> new ResourceNotFoundException("Product no encontrado"));
+
+        // RN-14: El sistema no permitirá agregar al carrito productos cuyo stock marcado sea igual a cero.
+        if (product.getStock() <= 0) {
+            throw new InsufficientStockException("El producto " + product.getName() + " está agotado.");
+        }
+
+        // RN-14 extendida: No permitir agregar más de lo que hay en stock
+        if (product.getStock() < request.quantity()) {
+            throw new InsufficientStockException("No hay suficiente stock disponible. Stock actual: " + product.getStock());
+        }
+
         // paso 3: logica para añadir o actualizar item
         // BUSCAR si el producto ya está en el carrito
         // Recorremos la lista de items del carrito buscando uno que tenga el mismo ID de producto
@@ -86,25 +98,26 @@ public class OrderServiceImpl implements IOrderService {
 
         if (existingItem.isPresent()) {
             // CASO A: El producto YA ESTABA en el carrito
-            // Obtenemos el item existente y le sumamos la nueva cantidad
             CartItem item = existingItem.get();
-            item.setQuantity(item.getQuantity() + request.quantity());
+            int newQuantity = item.getQuantity() + request.quantity();
+            
+            // Validar que la suma no supere el stock
+            if (newQuantity > product.getStock()) {
+                throw new InsufficientStockException("La cantidad total en el carrito supera el stock disponible.");
+            }
+            item.setQuantity(newQuantity);
         } else {
             // CASO B: El producto es NUEVO en el carrito
-            // Creamos un nuevo objeto CartItem
             CartItem newItem = CartItem.builder()
-                    .cart(cart)      // Lo vinculamos a este carrito
-                    .product(product) // Lo vinculamos a este producto
+                    .cart(cart)
+                    .product(product)
                     .quantity(request.quantity())
                     .build();
 
-            // Lo añadimos a la lista del carrito
             cart.getItems().add(newItem);
         }
 
         // 4. GUARDAR el carrito
-        // Como pusimos "cascade = ALL" en la entidad Cart,
-        // al guardar el carrito se guardan/actualizan automáticamente sus items.
         cartRepository.save(cart);
 
         return getCart(userId);
@@ -147,12 +160,30 @@ public class OrderServiceImpl implements IOrderService {
         //5. Converitimos los items del carrito a items de la orden
         List<OrderItem> orderItems = cart.getItems().stream()
                 .map(cartItem -> {
-                    BigDecimal unitPrice = cartItem.getProduct().getUnitPrice();
+                    Product product = cartItem.getProduct();
+                    
+                    // RN-13: El stock de un producto se descuenta automáticamente solo cuando el cliente confirma y finaliza el proceso de pago.
+                    // Verificamos stock por última vez antes de procesar
+                    if (product.getStock() < cartItem.getQuantity()) {
+                        throw new InsufficientStockException("Stock insuficiente para el producto: " + product.getName());
+                    }
+
+                    // Descontamos stock
+                    product.setStock(product.getStock() - cartItem.getQuantity());
+
+                    // RN-12: Un producto automáticamente pasa a estado 0 (Agotado) cuando el stock se agota
+                    if (product.getStock() == 0) {
+                        product.setStatus(0);
+                    }
+                    
+                    productRepository.save(product);
+
+                    BigDecimal unitPrice = product.getUnitPrice();
                     BigDecimal subtotal = unitPrice.multiply(new BigDecimal(cartItem.getQuantity()));
                     
                     return OrderItem.builder()
                             .order(order)
-                            .product(cartItem.getProduct())
+                            .product(product)
                             .quantity(cartItem.getQuantity())
                             .unitPrice(unitPrice)
                             .subtotal(subtotal)
@@ -172,7 +203,7 @@ public class OrderServiceImpl implements IOrderService {
         cartRepository.save(cart);
 
         //8. devolvemos el DTO usando el Mapper que creamos antes
-        return orderMapper.orderToOrderResponseDTO(savedOrder); // Lo programaremos en el siguiente paso
+        return orderMapper.orderToOrderResponseDTO(savedOrder);
     }
 
     @Override
