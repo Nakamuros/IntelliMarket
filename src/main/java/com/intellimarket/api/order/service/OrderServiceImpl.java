@@ -1,13 +1,17 @@
 package com.intellimarket.api.order.service;
 
 import com.intellimarket.api.auth.model.User;
+import com.intellimarket.api.auth.repository.RefreshTokenRepository;
 import com.intellimarket.api.auth.repository.UserRepository;
+import com.intellimarket.api.inventory.model.Inventory;
+import com.intellimarket.api.inventory.model.Products;
+import com.intellimarket.api.inventory.repository.InventoryRepository;
 import com.intellimarket.api.order.dto.*;
 import com.intellimarket.api.order.mapper.OrderMapper;
 import com.intellimarket.api.order.model.*;
 import com.intellimarket.api.order.repository.*;
-import com.intellimarket.api.product.model.Product;
 import com.intellimarket.api.product.repository.ProductRepository;
+import com.intellimarket.api.profile.repository.CustomerRepository;
 import com.intellimarket.api.store.model.Store;
 import com.intellimarket.api.order.service.IOrderService;
 import com.intellimarket.api.order.dto.CartResponseDTO;
@@ -30,8 +34,9 @@ public class OrderServiceImpl implements IOrderService {
     private final OrderRepository orderRepository;
     private final ProductRepository productRepository;
     private final StoreRepository storeRepository;
-    private final UserRepository userRepository;
+    private final CustomerRepository userRepository;
     private final OrderMapper orderMapper;
+    private final InventoryRepository inventoryRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -42,18 +47,26 @@ public class OrderServiceImpl implements IOrderService {
                             .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado"));
                     return cartRepository.save(Cart.builder().user(user).build());
                 });
+
         // Transformamos y calculamos all en un solo paso
         List<CartItemResponseDTO> items = cart.getItems().stream()
                 .map(item -> {
-                    BigDecimal subtotal = item.getProduct().getUnitPrice()
+                    Inventory inventory = inventoryRepository.findByProductIdAndStoreIdAndState
+                                    (item.getProduct().getId(), request.storeId(), 1)
+                            .orElseThrow(() -> new ResourceNotFoundException("El producto no está disponible en esta tienda"));
+
+                    BigDecimal subtotal = inventory.getPrice()
                             .multiply(new BigDecimal(item.getQuantity()));
                     return new CartItemResponseDTO(
                             item.getId(),
                             item.getProduct().getName(),
-                            item.getProduct().getUnitPrice(),
+                            // Aquí no estoy seguro
+                            // Si es el precio de productos agregados
+                            // Deber;iamos revisar la cantidad o quantity en Inventory_Movements
+                            // Y multiplicar por el precio unitario en Inventory
+                            inventory.getPrice(),
                             item.getQuantity(),
-                            subtotal,
-                            item.getProduct().getImage()
+                            subtotal
                     );
                 }).toList();
 
@@ -76,17 +89,22 @@ public class OrderServiceImpl implements IOrderService {
                     return cartRepository.save(Cart.builder().user(user).build());
                 });
         // paso 2: buscar el producto
-        Product product = productRepository.findById(request.productId()).
+        Products product = productRepository.findById(request.productId()).
                 orElseThrow(()-> new ResourceNotFoundException("Product no encontrado"));
 
+        // Extraer información personal del producto de su inventario
+        // Necesitamos saber el stock REAL en la tienda específica
+        Inventory inventory = inventoryRepository.findByProductIdAndStoreIdAndState(product.getId(), request.storeId(), 1)
+                .orElseThrow(() -> new ResourceNotFoundException("El producto no está disponible en esta tienda"));
+
         // RN-14: El sistema no permitirá agregar al carrito productos cuyo stock marcado sea igual a cero.
-        if (product.getStock() <= 0) {
+        if (inventory.getStock() <= 0) {
             throw new InsufficientStockException("El producto " + product.getName() + " está agotado.");
         }
 
         // RN-14 extendida: No permitir agregar más de lo que hay en stock
-        if (product.getStock() < request.quantity()) {
-            throw new InsufficientStockException("No hay suficiente stock disponible. Stock actual: " + product.getStock());
+        if (inventory.getStock() < request.quantity()) {
+            throw new InsufficientStockException("No hay suficiente stock disponible. Stock actual: " + inventory.getStock());
         }
 
         // paso 3: logica para añadir o actualizar item
@@ -102,7 +120,7 @@ public class OrderServiceImpl implements IOrderService {
             int newQuantity = item.getQuantity() + request.quantity();
             
             // Validar que la suma no supere el stock
-            if (newQuantity > product.getStock()) {
+            if (newQuantity > inventory.getStock()) {
                 throw new InsufficientStockException("La cantidad total en el carrito supera el stock disponible.");
             }
             item.setQuantity(newQuantity);
@@ -157,23 +175,29 @@ public class OrderServiceImpl implements IOrderService {
                 .status("PENDING")
                 .totalAmount(BigDecimal.ZERO)
                 .build();
+
+
         //5. Converitimos los items del carrito a items de la orden
         List<OrderItem> orderItems = cart.getItems().stream()
                 .map(cartItem -> {
-                    Product product = cartItem.getProduct();
+                    Products product = cartItem.getProduct();
+
+                    // Inventario e información del producto en cuestión
+                    Inventory inventory = inventoryRepository.findByProductIdAndStoreIdAndState(product.getId(), request.storeId(), 1)
+                            .orElseThrow(() -> new ResourceNotFoundException("El producto no está disponible en esta tienda"));
                     
                     // RN-13: El stock de un producto se descuenta automáticamente solo cuando el cliente confirma y finaliza el proceso de pago.
                     // Verificamos stock por última vez antes de procesar
-                    if (product.getStock() < cartItem.getQuantity()) {
+                    if (inventory.getStock() < cartItem.getQuantity()) {
                         throw new InsufficientStockException("Stock insuficiente para el producto: " + product.getName());
                     }
 
                     // Descontamos stock
-                    product.setStock(product.getStock() - cartItem.getQuantity());
+                    inventory.setStock(inventory.getStock() - cartItem.getQuantity());
 
                     // RN-12: Un producto automáticamente pasa a estado 0 (Agotado) cuando el stock se agota
-                    if (product.getStock() == 0) {
-                        product.setStatus(0);
+                    if (inventory.getStock() == 0) {
+                        inventory.setState(0);
                     }
                     
                     productRepository.save(product);

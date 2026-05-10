@@ -1,5 +1,6 @@
 package com.intellimarket.api.order.model;
 
+import com.intellimarket.api.inventory.model.Products;
 import com.intellimarket.api.product.model.Product;
 import jakarta.persistence.*;
 import lombok.*;
@@ -23,7 +24,7 @@ public class CartItem {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "product_id", nullable = false)
-    private Product product;
+    private Products product;
 
     @Column(nullable = false)
     private Integer quantity;
