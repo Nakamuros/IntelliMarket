@@ -9,7 +9,6 @@ import com.intellimarket.api.order.repository.*;
 import com.intellimarket.api.product.model.Product;
 import com.intellimarket.api.product.repository.ProductRepository;
 import com.intellimarket.api.store.model.Store;
-import com.intellimarket.api.order.service.IOrderService;
 import com.intellimarket.api.order.dto.CartResponseDTO;
 import com.intellimarket.api.store.repository.StoreRepository;
 import com.intellimarket.api.order.exception.InsufficientStockException;
