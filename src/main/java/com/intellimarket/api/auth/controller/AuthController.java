@@ -17,7 +17,13 @@ public class AuthController {
 
     private final IAuthService authService;
 
-    @PostMapping("/register/customer")
-    public ResponseEntity<AuthResponse> registerCustomer(@Valid @RequestBody RegisterRequest request) {
-        return new ResponseEntity<>(authService.registerCustomer(request), HttpStatus.CREATED);
+    @PostMapping("/register")
+    public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest request) {
+        return new ResponseEntity<>(authService.register(request), HttpStatus.CREATED);
     }
+
+    @PostMapping("/login")
+    public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
+        return ResponseEntity.ok(authService.login(request)); // ok() devuelve HTTP 200
+    }
+}
