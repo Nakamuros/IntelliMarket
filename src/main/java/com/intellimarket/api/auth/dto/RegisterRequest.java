@@ -26,5 +26,7 @@ public class RegisterRequest {
 
     @Size(max = 30) @NotBlank(message = "Last name is required")
     private String lastName;
+
+    private com.intellimarket.api.auth.model.Role role;
 }
 

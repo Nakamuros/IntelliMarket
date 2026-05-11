@@ -1,5 +1,6 @@
 package com.intellimarket.api.inventory.model;
 
+import com.intellimarket.api.product.model.Product;
 import com.intellimarket.api.store.model.Store;
 import jakarta.persistence.*;
 import lombok.*;
@@ -14,14 +15,14 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Builder
 
-public class Inventory_Movements {
+public class InventoryMovement {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @ManyToOne
     @JoinColumn(name = "product_id", nullable = false)
-    private Products product; // Relación: Products affect Inventory_Movements
+    private Product product; // Relación: Products affect Inventory_Movements
 
     @ManyToOne
     @JoinColumn(name = "store_id", nullable = false)

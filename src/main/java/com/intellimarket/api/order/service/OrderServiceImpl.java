@@ -1,19 +1,16 @@
 package com.intellimarket.api.order.service;
 
 import com.intellimarket.api.auth.model.User;
-import com.intellimarket.api.auth.repository.RefreshTokenRepository;
 import com.intellimarket.api.auth.repository.UserRepository;
 import com.intellimarket.api.inventory.model.Inventory;
-import com.intellimarket.api.inventory.model.Products;
 import com.intellimarket.api.inventory.repository.InventoryRepository;
 import com.intellimarket.api.order.dto.*;
 import com.intellimarket.api.order.mapper.OrderMapper;
 import com.intellimarket.api.order.model.*;
 import com.intellimarket.api.order.repository.*;
+import com.intellimarket.api.product.model.Product;
 import com.intellimarket.api.product.repository.ProductRepository;
-import com.intellimarket.api.profile.repository.CustomerRepository;
 import com.intellimarket.api.store.model.Store;
-import com.intellimarket.api.order.dto.CartResponseDTO;
 import com.intellimarket.api.store.repository.StoreRepository;
 import com.intellimarket.api.order.exception.InsufficientStockException;
 import com.intellimarket.api.shared.exception.ResourceNotFoundException;
@@ -33,7 +30,7 @@ public class OrderServiceImpl implements IOrderService {
     private final OrderRepository orderRepository;
     private final ProductRepository productRepository;
     private final StoreRepository storeRepository;
-    private final CustomerRepository userRepository;
+    private final UserRepository userRepository;
     private final OrderMapper orderMapper;
     private final InventoryRepository inventoryRepository;
 
@@ -47,25 +44,21 @@ public class OrderServiceImpl implements IOrderService {
                     return cartRepository.save(Cart.builder().user(user).build());
                 });
 
-        // Transformamos y calculamos all en un solo paso
         List<CartItemResponseDTO> items = cart.getItems().stream()
                 .map(item -> {
                     Inventory inventory = inventoryRepository.findByProductIdAndStoreIdAndState
-                                    (item.getProduct().getId(), request.storeId(), 1)
-                            .orElseThrow(() -> new ResourceNotFoundException("El producto no está disponible en esta tienda"));
+                                    (item.getProduct().getId(), item.getStore().getId(), 1)
+                            .orElseThrow(() -> new ResourceNotFoundException("El producto no está disponible en la tienda " + item.getStore().getName()));
 
                     BigDecimal subtotal = inventory.getPrice()
                             .multiply(new BigDecimal(item.getQuantity()));
                     return new CartItemResponseDTO(
                             item.getId(),
                             item.getProduct().getName(),
-                            // Aquí no estoy seguro
-                            // Si es el precio de productos agregados
-                            // Deber;iamos revisar la cantidad o quantity en Inventory_Movements
-                            // Y multiplicar por el precio unitario en Inventory
                             inventory.getPrice(),
                             item.getQuantity(),
-                            subtotal
+                            subtotal,
+                            item.getProduct().getImage() // Map imageUrl if needed, but CartItemResponseDTO might need update
                     );
                 }).toList();
 
@@ -80,61 +73,53 @@ public class OrderServiceImpl implements IOrderService {
     @Override
     @Transactional
     public CartResponseDTO addItemToCart(Long userId, AddToCartRequestDTO request) {
-        //paso 1: obtener el carrito o crear uno si no existe
         Cart cart = cartRepository.findByUserId(userId)
                 .orElseGet(() -> {
                     User user = userRepository.findById(userId).
                             orElseThrow(()-> new ResourceNotFoundException("Usuario no encontrado"));
                     return cartRepository.save(Cart.builder().user(user).build());
                 });
-        // paso 2: buscar el producto
-        Products product = productRepository.findById(request.productId()).
-                orElseThrow(()-> new ResourceNotFoundException("Product no encontrado"));
 
-        // Extraer información personal del producto de su inventario
-        // Necesitamos saber el stock REAL en la tienda específica
+        Product product = productRepository.findById(request.productId()).
+                orElseThrow(()-> new ResourceNotFoundException("Producto no encontrado"));
+
+        Store store = storeRepository.findById(request.storeId())
+                .orElseThrow(() -> new ResourceNotFoundException("Tienda no encontrada"));
+
         Inventory inventory = inventoryRepository.findByProductIdAndStoreIdAndState(product.getId(), request.storeId(), 1)
                 .orElseThrow(() -> new ResourceNotFoundException("El producto no está disponible en esta tienda"));
 
-        // RN-14: El sistema no permitirá agregar al carrito productos cuyo stock marcado sea igual a cero.
         if (inventory.getStock() <= 0) {
             throw new InsufficientStockException("El producto " + product.getName() + " está agotado.");
         }
 
-        // RN-14 extendida: No permitir agregar más de lo que hay en stock
         if (inventory.getStock() < request.quantity()) {
             throw new InsufficientStockException("No hay suficiente stock disponible. Stock actual: " + inventory.getStock());
         }
 
-        // paso 3: logica para añadir o actualizar item
-        // BUSCAR si el producto ya está en el carrito
-        // Recorremos la lista de items del carrito buscando uno que tenga el mismo ID de producto
         Optional<CartItem> existingItem = cart.getItems().stream()
-                .filter(item -> item.getProduct().getId().equals(product.getId()))
+                .filter(item -> item.getProduct().getId().equals(product.getId()) && item.getStore().getId().equals(store.getId()))
                 .findFirst();
 
         if (existingItem.isPresent()) {
-            // CASO A: El producto YA ESTABA en el carrito
             CartItem item = existingItem.get();
             int newQuantity = item.getQuantity() + request.quantity();
             
-            // Validar que la suma no supere el stock
             if (newQuantity > inventory.getStock()) {
                 throw new InsufficientStockException("La cantidad total en el carrito supera el stock disponible.");
             }
             item.setQuantity(newQuantity);
         } else {
-            // CASO B: El producto es NUEVO en el carrito
             CartItem newItem = CartItem.builder()
                     .cart(cart)
                     .product(product)
+                    .store(store)
                     .quantity(request.quantity())
                     .build();
 
             cart.getItems().add(newItem);
         }
 
-        // 4. GUARDAR el carrito
         cartRepository.save(cart);
 
         return getCart(userId);
@@ -145,63 +130,54 @@ public class OrderServiceImpl implements IOrderService {
     public void clearCart(Long userId) {
         Cart cart = cartRepository.findByUserId(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Carrito no encontrado"));
-        cart.getItems().clear(); // Esto vacía la lista
-        cartRepository.save(cart); // Al guardar, se borran los items de la DB
+        cart.getItems().clear();
+        cartRepository.save(cart);
     }
+
     @Override
     @Transactional
     public OrderResponseDTO placeOrder(Long userId, OrderRequestDTO request) {
-        //1. Buscamos al usuario y su carrito
         User user = userRepository.findById(userId).orElseThrow(
                 () -> new ResourceNotFoundException("Usuario no encontrado")
         );
         Cart cart = cartRepository.findByUserId(userId).orElseThrow(
                 ()-> new ResourceNotFoundException("Carrito no encontrado")
         );
-        //2. Verificamos el carrito, no se puede comprar un carrito vacio
+        
         if (cart.getItems().isEmpty()) {
-            throw new ResourceNotFoundException("No puedes realizar una orden con el carrito vacio");
+            throw new ResourceNotFoundException("No puedes realizar una orden con el carrito vacío");
         }
-        //3. Buscamos la tienda (viene el request)
+
         Store store = storeRepository.findById(request.storeId()).orElseThrow(
                 () -> new ResourceNotFoundException("Tienda no encontrada")
         );
 
-        //4. Creamos la Entidad Orden
-        Orders order = Orders.builder()
+        Order order = Order.builder()
                 .user(user)
                 .store(store)
                 .status("PENDING")
                 .totalAmount(BigDecimal.ZERO)
                 .build();
 
-
-        //5. Converitimos los items del carrito a items de la orden
         List<OrderItem> orderItems = cart.getItems().stream()
                 .map(cartItem -> {
-                    Products product = cartItem.getProduct();
-
-                    // Inventario e información del producto en cuestión
+                    Product product = cartItem.getProduct();
                     Inventory inventory = inventoryRepository.findByProductIdAndStoreIdAndState(product.getId(), request.storeId(), 1)
                             .orElseThrow(() -> new ResourceNotFoundException("El producto no está disponible en esta tienda"));
                     
-                    // RN-13: El stock de un producto se descuenta automáticamente solo cuando el cliente confirma y finaliza el proceso de pago.
-                    // Verificamos stock por última vez antes de procesar
                     if (inventory.getStock() < cartItem.getQuantity()) {
                         throw new InsufficientStockException("Stock insuficiente para el producto: " + product.getName());
                     }
 
-                    // Descontamos stock
                     inventory.setStock(inventory.getStock() - cartItem.getQuantity());
 
-                    // RN-12: Un producto automáticamente pasa a estado 0 (Agotado) cuando el stock se agota
                     if (inventory.getStock() == 0) {
                         inventory.setState(0);
                     }
                     
-                    productRepository.save(product);
+                    inventoryRepository.save(inventory);
 
-                    BigDecimal unitPrice = product.getUnitPrice();
+                    BigDecimal unitPrice = inventory.getPrice(); // Use store-specific price
                     BigDecimal subtotal = unitPrice.multiply(new BigDecimal(cartItem.getQuantity()));
                     
                     return OrderItem.builder()
@@ -213,28 +189,23 @@ public class OrderServiceImpl implements IOrderService {
                             .build();
                 }).collect(Collectors.toList());
 
-        //6. Asignamos los items y calculamos el total final
         order.setItems(orderItems);
         BigDecimal totalOrder = orderItems.stream()
                 .map(OrderItem::getSubtotal)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         order.setTotalAmount(totalOrder);
 
-        //7. Guardamos la orden y vaciamos el carrito
-        Orders savedOrder = orderRepository.save(order);
+        Order savedOrder = orderRepository.save(order);
         cart.getItems().clear();
         cartRepository.save(cart);
 
-        //8. devolvemos el DTO usando el Mapper que creamos antes
         return orderMapper.orderToOrderResponseDTO(savedOrder);
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<OrderResponseDTO> getOrderHistory(Long userId) {
-        //1. Buscamos todas las ordenes de usuario en la BD
-        List<Orders> orders = orderRepository.findByUserIdOrderByCreatedAtDesc(userId);
-        //2. convertimos las lista de Entidades en una lista de DTOs usando el Mapper
+        List<Order> orders = orderRepository.findByUserIdOrderByCreatedAtDesc(userId);
         return orders.stream()
                 .map(orderMapper::orderToOrderResponseDTO)
                 .collect(Collectors.toList());
@@ -243,9 +214,8 @@ public class OrderServiceImpl implements IOrderService {
     @Override
     @Transactional(readOnly = true)
     public OrderResponseDTO getOrderById(Long orderId) {
-        //1. Buscamos la orden por su Id
-        Orders order = orderRepository.findById(orderId).
-                orElseThrow(() -> new ResourceNotFoundException("Orden no econtrada con ID"+ orderId));
+        Order order = orderRepository.findById(orderId).
+                orElseThrow(() -> new ResourceNotFoundException("Orden no encontrada con ID: " + orderId));
         return orderMapper.orderToOrderResponseDTO(order);
     }
 

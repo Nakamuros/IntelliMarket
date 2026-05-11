@@ -5,14 +5,13 @@ import com.intellimarket.api.inventory.dto.ProductsResponse;
 import com.intellimarket.api.inventory.mapper.ProductsMapper;
 import com.intellimarket.api.inventory.model.*;
 import com.intellimarket.api.inventory.repository.InventoryRepository;
-import com.intellimarket.api.inventory.repository.Inventory_MovementsRepository;
-import com.intellimarket.api.inventory.repository.ProductsRepository;
+import com.intellimarket.api.inventory.repository.InventoryMovementRepository;
+import com.intellimarket.api.product.model.Product;
+import com.intellimarket.api.product.repository.ProductRepository;
 import com.intellimarket.api.shared.exception.BusinessRuleException;
 import com.intellimarket.api.shared.exception.ResourceNotFoundException;
 import com.intellimarket.api.store.model.Store;
 import com.intellimarket.api.store.repository.StoreRepository;
-import com.intellimarket.api.stores.model.Stores;
-import com.intellimarket.api.stores.repository.StoresRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,11 +21,11 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 public class InventoryService implements IInventoryService {
-    private final ProductsRepository productsRepository;
+    private final ProductRepository productRepository;
     private final InventoryRepository inventoryRepository;
-    private final Inventory_MovementsRepository inventoryMovementsRepository;
+    private final InventoryMovementRepository inventoryMovementRepository;
     private final ProductsMapper productsMapper;
-    private final StoreRepository storesRepository;
+    private final StoreRepository storeRepository;
 
     @Override
     @Transactional
@@ -34,10 +33,15 @@ public class InventoryService implements IInventoryService {
     public ProductsResponse createProduct(Long store_id, ProductsRequest request) {
         // 1. Guardar el producto en su catálogo (Products)
         // Catálogo global
-        Products product = productsRepository.save(Products.builder().name(request.name())
-        .category(request.category()).description(request.description()).build());
+        Product product = productRepository.save(Product.builder()
+                .name(request.name())
+                .category(request.category())
+                .description(request.description())
+                .unitPrice(request.price()) // Assuming price maps to unitPrice in Product
+                .stock(request.stock())
+                .build());
 
-        Store store = storesRepository.findById(store_id)
+        Store store = storeRepository.findById(store_id)
                 .orElseThrow(() -> new ResourceNotFoundException("Tienda no encontrada"));
 
         // Guardar producto en bodega de tienda o su inventario (Inventory)
@@ -57,7 +61,7 @@ public class InventoryService implements IInventoryService {
     @Override
     @Transactional
     public ProductsResponse updateProduct(Long product_id, Long store_id, ProductsRequest request){
-        Products product = productsRepository.findById(product_id).orElseThrow(()-> new
+        Product product = productRepository.findById(product_id).orElseThrow(()-> new
                 ResourceNotFoundException("Producto no existe"));
 
         Inventory inventory = inventoryRepository.findByProductIdAndStoreIdAndState(product_id, store_id, 1).
@@ -70,7 +74,7 @@ public class InventoryService implements IInventoryService {
         product.setCategory(request.category());
         inventory.setPrice(request.price());
 
-        productsRepository.save(product);
+        productRepository.save(product);
         inventoryRepository.save(inventory);
 
         return productsMapper.toResponse(product, inventory);
@@ -100,14 +104,14 @@ public class InventoryService implements IInventoryService {
     // US-09: El estado cambia
 
 
-    private void saveMovement(Products p, Store sId, Integer qty, Type type, Reference_Type ref) {
-        Inventory_Movements m = Inventory_Movements.builder()
+    private void saveMovement(Product p, Store sId, Integer qty, Type type, Reference_Type ref) {
+        InventoryMovement m = InventoryMovement.builder()
                 .product(p)
                 .store(sId)
                 .quantity(qty)
                 .type(type)
                 .reference_type(ref)
                 .build();
-        inventoryMovementsRepository.save(m);
+        inventoryMovementRepository.save(m);
     }
 }

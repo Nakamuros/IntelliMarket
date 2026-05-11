@@ -1,7 +1,6 @@
 package com.intellimarket.api.inventory.dto;
 
 import com.intellimarket.api.inventory.model.Category;
-import com.intellimarket.api.stores.model.Stores;
 import jakarta.validation.constraints.*;
 
 import java.math.BigDecimal;

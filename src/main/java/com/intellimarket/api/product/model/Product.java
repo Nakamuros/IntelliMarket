@@ -1,5 +1,6 @@
 package com.intellimarket.api.product.model;
 
+import com.intellimarket.api.inventory.model.Category;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -22,8 +23,9 @@ public class Product {
     @Column(nullable = false, length = 60)
     private String name;
 
-    @Column(length = 50)
-    private String category;
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private Category category;
 
     @Column(length = 130)
     private String description;

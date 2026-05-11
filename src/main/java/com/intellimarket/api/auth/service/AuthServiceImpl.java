@@ -5,10 +5,11 @@ import com.intellimarket.api.auth.dto.RegisterRequest;
 import com.intellimarket.api.auth.dto.AuthResponse;
 import com.intellimarket.api.auth.exception.EmailAlreadyExistsException;
 import com.intellimarket.api.auth.exception.InvalidCredentialsException;
-import com.intellimarket.api.auth.mapper.AuthMapper;
 import com.intellimarket.api.auth.model.User;
 import com.intellimarket.api.auth.repository.UserRepository;
+import com.intellimarket.api.auth.security.JwtService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -16,7 +17,8 @@ import org.springframework.stereotype.Service;
 public class AuthServiceImpl implements IAuthService {
 
     private final UserRepository userRepository;
-    private final AuthMapper authMapper;
+    private final PasswordEncoder passwordEncoder;
+    private final JwtService jwtService;
 
     @Override
     public AuthResponse register(RegisterRequest request) {
@@ -24,9 +26,18 @@ public class AuthServiceImpl implements IAuthService {
             throw new EmailAlreadyExistsException(request.getEmail());
         }
 
-        User user = authMapper.toUser(request);
+        User user = User.builder()
+                .email(request.getEmail())
+                .password(passwordEncoder.encode(request.getPassword()))
+                .firstName(request.getFirstName())
+                .lastName(request.getLastName())
+                .role(request.getRole())
+                .build();
+        
         User savedUser = userRepository.save(user);
-        return authMapper.toAuthResponse(savedUser);
+        
+        String token = jwtService.generateToken(savedUser);
+        return AuthResponse.fromUser(savedUser, token);
     }
 
     @Override
@@ -35,12 +46,13 @@ public class AuthServiceImpl implements IAuthService {
         User user = userRepository.findByEmail(request.email())
                 .orElseThrow(() -> new InvalidCredentialsException());
 
-        // 2. Verificar la contraseña (por ahora en texto plano)
-        if (!user.getPassword().equals(request.password())) {
+        // 2. Verificar la contraseña hasheada
+        if (!passwordEncoder.matches(request.password(), user.getPassword())) {
             throw new InvalidCredentialsException();
         }
 
-        // 3. Devolver los datos del usuario si todo coincide
-        return authMapper.toAuthResponse(user);
+        // 3. Generar token y devolver respuesta
+        String token = jwtService.generateToken(user);
+        return AuthResponse.fromUser(user, token);
     }
 }

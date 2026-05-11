@@ -1,5 +1,6 @@
 package com.intellimarket.api.inventory.model;
 
+import com.intellimarket.api.product.model.Product;
 import com.intellimarket.api.store.model.Store;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.DecimalMax;
@@ -26,7 +27,7 @@ public class Inventory {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     //@Id
     @JoinColumn(name = "product_id", nullable = false)
-    private Products product; // Relación: Products listed in Inventory
+    private Product product; // Relación: Products listed in Inventory
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "store_id", nullable = false)

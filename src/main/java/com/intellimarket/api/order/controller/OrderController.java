@@ -2,7 +2,6 @@ package com.intellimarket.api.order.controller;
 
 import com.intellimarket.api.order.dto.*;
 import com.intellimarket.api.order.service.IOrderService;
-import com.intellimarket.api.product.repository.ProductRepository;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -14,9 +13,8 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/orders")
 @RequiredArgsConstructor
-
 public class OrderController {
-    public final IOrderService orderService;
+    private final IOrderService orderService;
     //--Endpoints del carrito--
     @GetMapping("/cart/{userId}")
     public ResponseEntity<CartResponseDTO> getCart(@PathVariable Long userId) {

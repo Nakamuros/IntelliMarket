@@ -2,7 +2,7 @@ package com.intellimarket.api.inventory.mapper;
 
 import com.intellimarket.api.inventory.dto.ProductsResponse;
 import com.intellimarket.api.inventory.model.Inventory;
-import com.intellimarket.api.inventory.model.Products;
+import com.intellimarket.api.product.model.Product;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
@@ -15,5 +15,5 @@ public interface ProductsMapper {
     @Mapping(target = "description", source = "product.description")
     @Mapping(target = "stock", source = "inventory.stock")
     @Mapping(target = "price", source = "inventory.price")
-    ProductsResponse toResponse(Products product, Inventory inventory);
+    ProductsResponse toResponse(Product product, Inventory inventory);
 }

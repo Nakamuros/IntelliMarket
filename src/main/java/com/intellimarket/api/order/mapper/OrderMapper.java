@@ -13,7 +13,7 @@ import org.mapstruct.Mapping;
 public interface OrderMapper {
     @Mapping(source = "order.store.id", target = "storeId")
     @Mapping(source = "order.store.name", target = "storeName")
-    OrderResponseDTO orderToOrderResponseDTO(Orders order);
+    OrderResponseDTO orderToOrderResponseDTO(Order order);
 
     @Mapping(source = "orderItem.product.name", target = "productName")
     @Mapping(source = "orderItem.product.image", target = "imageUrl")
