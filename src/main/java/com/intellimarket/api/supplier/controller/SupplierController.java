@@ -13,8 +13,8 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-@RestController  // <-- ESTA ES LA MÁS IMPORTANTE
-@RequestMapping("/api/v1/suppliers") // <-- ESTA LE DA LA DIRECCIÓN
+@RestController
+@RequestMapping("/api/v1/suppliers")
 @RequiredArgsConstructor
 public class SupplierController {
 
