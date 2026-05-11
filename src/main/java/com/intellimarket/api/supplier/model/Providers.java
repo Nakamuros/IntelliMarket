@@ -21,12 +21,4 @@ public class Providers {
 
     @Column(name = "contact_name", nullable = false)
     private String contactName;
-
-    /*@ManyToMany
-    @JoinTable(
-            name = "PROVIDER_PRODUCTS",
-            joinColumns = @JoinColumn(name = "provider_id"),
-            inverseJoinColumns = @JoinColumn(name = "product_id")
-    )
-    private List<Products> products;*/
 }
