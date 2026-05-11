@@ -11,12 +11,11 @@ import com.intellimarket.api.shared.exception.BusinessRuleException;
 import com.intellimarket.api.shared.exception.ResourceNotFoundException;
 import com.intellimarket.api.store.model.Store;
 import com.intellimarket.api.store.repository.StoreRepository;
-import com.intellimarket.api.stores.model.Stores;
-import com.intellimarket.api.stores.repository.StoresRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigInteger;
 import java.util.List;
 
 @Service
@@ -35,7 +34,7 @@ public class InventoryService implements IInventoryService {
         // 1. Guardar el producto en su catálogo (Products)
         // Catálogo global
         Products product = productsRepository.save(Products.builder().name(request.name())
-        .category(request.category()).description(request.description()).build());
+                .category(request.category()).description(request.description()).build());
 
         Store store = storesRepository.findById(store_id)
                 .orElseThrow(() -> new ResourceNotFoundException("Tienda no encontrada"));
@@ -48,10 +47,23 @@ public class InventoryService implements IInventoryService {
         // Tipo de movimiento: Compra
         // Referencia de tipo: Proveedor, compra a proveedor de producto, producto agregado
         saveMovement(product, store, request.stock(),
-                Type.PURCHASE, Reference_Type.PROVIDER);
+                Type.PURCHASE, Reference_Type.PROVIDER, request.providerId());
 
         return productsMapper.toResponse(product, inventory);
     }
+
+    /*@Override // Asegúrate de que esté en la Interface IInventoryService
+    @Transactional
+    // Almacenar el movimiento de operaciones con ID de Orders
+    public void registerSaleMovement(Long productId, Long storeId, Integer quantity, Long providerId) {
+        Products product = productsRepository.findById(productId)
+                .orElseThrow(() -> new ResourceNotFoundException("Producto no encontrado"));
+        Store store = storesRepository.findById(storeId)
+                .orElseThrow(() -> new ResourceNotFoundException("Tienda no encontrada"));
+
+        // Llamamos a tu función privada
+        saveMovement(product, store, quantity, Type.SALE, Reference_Type.PROVIDER, providerId);
+    }*/
 
     // Editar producto
     @Override
@@ -100,13 +112,14 @@ public class InventoryService implements IInventoryService {
     // US-09: El estado cambia
 
 
-    private void saveMovement(Products p, Store sId, Integer qty, Type type, Reference_Type ref) {
+    private void saveMovement(Products p, Store sId, Integer qty, Type type, Reference_Type ref, Long referenceId) {
         Inventory_Movements m = Inventory_Movements.builder()
                 .product(p)
                 .store(sId)
                 .quantity(qty)
                 .type(type)
                 .reference_type(ref)
+                .reference_id(referenceId)
                 .build();
         inventoryMovementsRepository.save(m);
     }

@@ -6,12 +6,11 @@ import com.intellimarket.api.auth.repository.UserRepository;
 import com.intellimarket.api.inventory.model.Inventory;
 import com.intellimarket.api.inventory.model.Products;
 import com.intellimarket.api.inventory.repository.InventoryRepository;
+import com.intellimarket.api.inventory.repository.ProductsRepository;
 import com.intellimarket.api.order.dto.*;
 import com.intellimarket.api.order.mapper.OrderMapper;
 import com.intellimarket.api.order.model.*;
 import com.intellimarket.api.order.repository.*;
-import com.intellimarket.api.product.repository.ProductRepository;
-import com.intellimarket.api.profile.repository.CustomerRepository;
 import com.intellimarket.api.store.model.Store;
 import com.intellimarket.api.order.dto.CartResponseDTO;
 import com.intellimarket.api.store.repository.StoreRepository;
@@ -31,9 +30,9 @@ import java.util.stream.Collectors;
 public class OrderServiceImpl implements IOrderService {
     private final CartRepository cartRepository;
     private final OrderRepository orderRepository;
-    private final ProductRepository productRepository;
+    private final ProductsRepository productRepository;
     private final StoreRepository storeRepository;
-    private final CustomerRepository userRepository;
+    private final UserRepository userRepository;
     private final OrderMapper orderMapper;
     private final InventoryRepository inventoryRepository;
 
@@ -88,8 +87,8 @@ public class OrderServiceImpl implements IOrderService {
                     return cartRepository.save(Cart.builder().user(user).build());
                 });
         // paso 2: buscar el producto
-        Products product = productRepository.findById(request.productId()).
-                orElseThrow(()-> new ResourceNotFoundException("Product no encontrado"));
+        Products product = productRepository.findById(request.productId()).orElseThrow(()->
+                new ResourceNotFoundException("Product no encontrado"));
 
         // Extraer información personal del producto de su inventario
         // Necesitamos saber el stock REAL en la tienda específica
@@ -201,7 +200,7 @@ public class OrderServiceImpl implements IOrderService {
                     
                     productRepository.save(product);
 
-                    BigDecimal unitPrice = product.getUnitPrice();
+                    BigDecimal unitPrice = inventory.getPrice();
                     BigDecimal subtotal = unitPrice.multiply(new BigDecimal(cartItem.getQuantity()));
                     
                     return OrderItem.builder()

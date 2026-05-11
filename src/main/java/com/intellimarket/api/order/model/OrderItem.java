@@ -1,6 +1,6 @@
 package com.intellimarket.api.order.model;
 
-import com.intellimarket.api.product.model.Product;
+import com.intellimarket.api.inventory.model.Products;
 import jakarta.persistence.*;
 import lombok.*;
 import java.math.BigDecimal;
@@ -24,7 +24,7 @@ public class OrderItem {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "product_id", nullable = false)
-    private Product product;
+    private Products product;
 
     @Column(nullable = false)
     private Integer quantity;

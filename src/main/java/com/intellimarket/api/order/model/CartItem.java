@@ -1,7 +1,6 @@
 package com.intellimarket.api.order.model;
 
 import com.intellimarket.api.inventory.model.Products;
-import com.intellimarket.api.product.model.Product;
 import jakarta.persistence.*;
 import lombok.*;
 

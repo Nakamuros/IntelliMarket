@@ -1,7 +1,6 @@
 package com.intellimarket.api.inventory.dto;
 
 import com.intellimarket.api.inventory.model.Category;
-import com.intellimarket.api.stores.model.Stores;
 import jakarta.validation.constraints.*;
 
 import java.math.BigDecimal;
@@ -25,13 +24,13 @@ public record ProductsRequest (
 
         @NotNull
         @Min(value = 0, message = "El stock inicial no puede ser negativo")
-        Integer stock
+        Integer stock,
 
         //@NotNull
         //Long user_id,
 
-        //@NotNull
+        @NotNull
         //Stores store_id
         //Long store_id
-        //Long id
+        Long providerId
 ) {}
