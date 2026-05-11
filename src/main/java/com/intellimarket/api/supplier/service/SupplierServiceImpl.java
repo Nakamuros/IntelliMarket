@@ -1,9 +1,13 @@
 package com.intellimarket.api.supplier.service;
 
+import com.intellimarket.api.product.Product; //Esto cambiar cuando se asocie con la verdadera tabla products
 import com.intellimarket.api.supplier.dto.ProviderRequestDTO;
 import com.intellimarket.api.supplier.dto.ProviderResponseDTO;
 import com.intellimarket.api.supplier.mapper.ProviderMapper;
 import com.intellimarket.api.supplier.model.Provider;
+import com.intellimarket.api.supplier.model.ProviderProduct;
+import com.intellimarket.api.supplier.model.ProviderProductId;
+import com.intellimarket.api.supplier.repository.ProviderProductRepository;
 import com.intellimarket.api.supplier.repository.ProviderRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -17,6 +21,8 @@ public class SupplierServiceImpl implements ISupplierService {
 
     private final ProviderRepository providerRepository;
     private final ProviderMapper providerMapper;
+
+    private final ProviderProductRepository providerProductRepository;
 
     @Override
     public List<ProviderResponseDTO> getAllProviders() {
@@ -36,6 +42,25 @@ public class SupplierServiceImpl implements ISupplierService {
     public ProviderResponseDTO createProvider(ProviderRequestDTO request) {
         Provider provider = providerMapper.providerRequestDTOToProvider(request);
         Provider savedProvider = providerRepository.save(provider);
+
+        if (request.productIds() != null && !request.productIds().isEmpty()) {
+
+            List<ProviderProduct> providerProducts = request.productIds().stream().map(productId -> {
+                ProviderProduct pp = new ProviderProduct();
+
+                pp.setId(new ProviderProductId(savedProvider.getId(), productId));
+                pp.setProvider(savedProvider);
+
+                Product product = new Product();
+                product.setId(productId);
+                pp.setProduct(product);
+                
+                return pp;
+            }).collect(Collectors.toList());
+
+            providerProductRepository.saveAll(providerProducts);
+        }
+
         return providerMapper.providerToProviderResponseDTO(savedProvider);
     }
 
