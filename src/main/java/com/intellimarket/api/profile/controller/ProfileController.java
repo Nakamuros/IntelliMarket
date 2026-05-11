@@ -35,13 +35,13 @@ public class ProfileController {
     }
 
     // --- Endpoints para Owners ---
-    @PreAuthorize("hasRole('OWNER')")
+    @PreAuthorize("hasRole('SELLER')")
     @GetMapping("/owner/me")
     public ResponseEntity<ProfileResponse> getMyOwnerProfile(Authentication authentication) {
         String email = authentication.getName();
         return ResponseEntity.ok(profileService.getOwnerProfileByEmail(email));
     }
-    @PreAuthorize("hasRole('OWNER')")
+    @PreAuthorize("hasRole('SELLER')")
     @PutMapping("/owner/me")
     public ResponseEntity<ProfileResponse> updateMyOwnerProfile(
             Authentication authentication,

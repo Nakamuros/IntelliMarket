@@ -5,12 +5,12 @@ import java.util.List;
 
 public interface IOrderService {
     // Gestion del Carrito
-    CartResponseDTO getCart(Long userId);
-    CartResponseDTO addItemToCart(Long userId, AddToCartRequestDTO request);
-    void clearCart(Long userId);
+    CartResponseDTO getCartByEmail(String email);
+    CartResponseDTO addItemToCartByEmail(String email, AddToCartRequestDTO request);
+    void clearCartByEmail(String email);
 
     // Gestion de Ordenes
-    OrderResponseDTO placeOrder(Long userId, OrderRequestDTO request);
-    List<OrderResponseDTO> getOrderHistory(Long userId);
+    OrderResponseDTO placeOrderByEmail(String email, OrderRequestDTO request);
+    List<OrderResponseDTO> getOrderHistoryByEmail(String email);
     OrderResponseDTO getOrderById(Long orderId);
 }

@@ -12,15 +12,25 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import com.intellimarket.api.auth.model.Role;
+import com.intellimarket.api.profile.model.Customer;
+import com.intellimarket.api.profile.model.Owner;
+import com.intellimarket.api.profile.repository.CustomerRepository;
+import com.intellimarket.api.profile.repository.OwnerRepository;
+import org.springframework.transaction.annotation.Transactional;
+
 @Service
 @RequiredArgsConstructor
 public class AuthServiceImpl implements IAuthService {
 
     private final UserRepository userRepository;
+    private final CustomerRepository customerRepository;
+    private final OwnerRepository ownerRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
 
     @Override
+    @Transactional
     public AuthResponse register(RegisterRequest request) {
         if (userRepository.existsByEmail(request.getEmail())) {
             throw new EmailAlreadyExistsException(request.getEmail());
@@ -35,6 +45,19 @@ public class AuthServiceImpl implements IAuthService {
                 .build();
         
         User savedUser = userRepository.save(user);
+
+        // Crear perfil automáticamente según el rol
+        if (savedUser.getRole() == Role.CUSTOMER) {
+            Customer customer = Customer.builder()
+                    .user(savedUser)
+                    .build();
+            customerRepository.save(customer);
+        } else if (savedUser.getRole() == Role.SELLER) {
+            Owner owner = Owner.builder()
+                    .user(savedUser)
+                    .build();
+            ownerRepository.save(owner);
+        }
         
         String token = jwtService.generateToken(savedUser);
         return AuthResponse.fromUser(savedUser, token);

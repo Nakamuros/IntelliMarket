@@ -36,13 +36,12 @@ public class OrderServiceImpl implements IOrderService {
 
     @Override
     @Transactional(readOnly = true)
-    public CartResponseDTO getCart(Long userId) {
-        Cart cart = cartRepository.findByUserId(userId)
-                .orElseGet(() -> {
-                    User user = userRepository.findById(userId)
-                            .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado"));
-                    return cartRepository.save(Cart.builder().user(user).build());
-                });
+    public CartResponseDTO getCartByEmail(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado"));
+        
+        Cart cart = cartRepository.findByUserId(user.getId())
+                .orElseGet(() -> cartRepository.save(Cart.builder().user(user).build()));
 
         List<CartItemResponseDTO> items = cart.getItems().stream()
                 .map(item -> {
@@ -58,7 +57,7 @@ public class OrderServiceImpl implements IOrderService {
                             inventory.getPrice(),
                             item.getQuantity(),
                             subtotal,
-                            item.getProduct().getImage() // Map imageUrl if needed, but CartItemResponseDTO might need update
+                            item.getProduct().getImage()
                     );
                 }).toList();
 
@@ -72,13 +71,12 @@ public class OrderServiceImpl implements IOrderService {
 
     @Override
     @Transactional
-    public CartResponseDTO addItemToCart(Long userId, AddToCartRequestDTO request) {
-        Cart cart = cartRepository.findByUserId(userId)
-                .orElseGet(() -> {
-                    User user = userRepository.findById(userId).
-                            orElseThrow(()-> new ResourceNotFoundException("Usuario no encontrado"));
-                    return cartRepository.save(Cart.builder().user(user).build());
-                });
+    public CartResponseDTO addItemToCartByEmail(String email, AddToCartRequestDTO request) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado"));
+
+        Cart cart = cartRepository.findByUserId(user.getId())
+                .orElseGet(() -> cartRepository.save(Cart.builder().user(user).build()));
 
         Product product = productRepository.findById(request.productId()).
                 orElseThrow(()-> new ResourceNotFoundException("Producto no encontrado"));
@@ -122,13 +120,16 @@ public class OrderServiceImpl implements IOrderService {
 
         cartRepository.save(cart);
 
-        return getCart(userId);
+        return getCartByEmail(email);
     }
 
     @Override
     @Transactional
-    public void clearCart(Long userId) {
-        Cart cart = cartRepository.findByUserId(userId)
+    public void clearCartByEmail(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado"));
+        
+        Cart cart = cartRepository.findByUserId(user.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("Carrito no encontrado"));
         cart.getItems().clear();
         cartRepository.save(cart);
@@ -136,11 +137,11 @@ public class OrderServiceImpl implements IOrderService {
 
     @Override
     @Transactional
-    public OrderResponseDTO placeOrder(Long userId, OrderRequestDTO request) {
-        User user = userRepository.findById(userId).orElseThrow(
+    public OrderResponseDTO placeOrderByEmail(String email, OrderRequestDTO request) {
+        User user = userRepository.findByEmail(email).orElseThrow(
                 () -> new ResourceNotFoundException("Usuario no encontrado")
         );
-        Cart cart = cartRepository.findByUserId(userId).orElseThrow(
+        Cart cart = cartRepository.findByUserId(user.getId()).orElseThrow(
                 ()-> new ResourceNotFoundException("Carrito no encontrado")
         );
         
@@ -204,8 +205,11 @@ public class OrderServiceImpl implements IOrderService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<OrderResponseDTO> getOrderHistory(Long userId) {
-        List<Order> orders = orderRepository.findByUserIdOrderByCreatedAtDesc(userId);
+    public List<OrderResponseDTO> getOrderHistoryByEmail(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado"));
+        
+        List<Order> orders = orderRepository.findByUserIdOrderByCreatedAtDesc(user.getId());
         return orders.stream()
                 .map(orderMapper::orderToOrderResponseDTO)
                 .collect(Collectors.toList());

@@ -10,44 +10,56 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+
 @RestController
 @RequestMapping("/api/orders")
 @RequiredArgsConstructor
 public class OrderController {
     private final IOrderService orderService;
+
     //--Endpoints del carrito--
-    @GetMapping("/cart/{userId}")
-    public ResponseEntity<CartResponseDTO> getCart(@PathVariable Long userId) {
-        return ResponseEntity.ok(orderService.getCart(userId));
+    @GetMapping("/cart/me")
+    @PreAuthorize("hasRole('CUSTOMER')")
+    public ResponseEntity<CartResponseDTO> getCart(Authentication authentication) {
+        String email = authentication.getName();
+        return ResponseEntity.ok(orderService.getCartByEmail(email));
     }
 
-    @PostMapping("/cart/{userId}/items")
+    @PostMapping("/cart/items")
+    @PreAuthorize("hasRole('CUSTOMER')")
     public ResponseEntity<CartResponseDTO> addItemToCart(
-            @PathVariable Long userId,
+            Authentication authentication,
             @Valid @RequestBody AddToCartRequestDTO request) {
+        String email = authentication.getName();
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(orderService.addItemToCart(userId, request));
+                .body(orderService.addItemToCartByEmail(email, request));
     }
 
-    @DeleteMapping("/cart/{userId}")
-    public ResponseEntity<Void> clearCart(@PathVariable Long userId) {
-        orderService.clearCart(userId);
+    @DeleteMapping("/cart/me")
+    @PreAuthorize("hasRole('CUSTOMER')")
+    public ResponseEntity<Void> clearCart(Authentication authentication) {
+        String email = authentication.getName();
+        orderService.clearCartByEmail(email);
         return ResponseEntity.noContent().build();
     }
 
     //--Endpoint de ordenes--
-    @PostMapping("/{userId}")
+    @PostMapping("/checkout")
+    @PreAuthorize("hasRole('CUSTOMER')")
     public ResponseEntity<OrderResponseDTO> placeOrder(
-            @PathVariable Long userId,
+            Authentication authentication,
             @Valid @RequestBody OrderRequestDTO request) {
+        String email = authentication.getName();
         return ResponseEntity.status(HttpStatus.CREATED).
-                body(orderService.placeOrder(userId, request));
+                body(orderService.placeOrderByEmail(email, request));
     }
 
-    @GetMapping("/user/{userId}")
-    public ResponseEntity<List<OrderResponseDTO>> getOrderHistory(@PathVariable Long userId) {
-        return ResponseEntity.ok(orderService.getOrderHistory(userId));
+    @GetMapping("/history")
+    @PreAuthorize("hasRole('CUSTOMER')")
+    public ResponseEntity<List<OrderResponseDTO>> getOrderHistory(Authentication authentication) {
+        String email = authentication.getName();
+        return ResponseEntity.ok(orderService.getOrderHistoryByEmail(email));
     }
-
-
 }
