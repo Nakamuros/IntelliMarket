@@ -23,12 +23,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @Configuration
 @EnableMethodSecurity // Permite usar @PreAuthorize en nuestros controladores
 @RequiredArgsConstructor
-public class SecurityConfig {
 
-    private final UserRepository userRepository;
-
-@EnableWebSecurity
-@EnableMethodSecurity
 public class SecurityConfig {
 
     private final UserRepository userRepository;
@@ -40,7 +35,7 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
 
                 //2. Apagamos el estado (Stateless)
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
                 //3. Configuramos las reglas de acceso
                 .authorizeHttpRequests(auth -> auth
