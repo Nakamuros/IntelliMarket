@@ -22,9 +22,9 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 @Configuration
-@EnableWebSecurity
-@EnableMethodSecurity
+@EnableMethodSecurity // Permite usar @PreAuthorize en nuestros controladores
 @RequiredArgsConstructor
+
 public class SecurityConfig {
 
     private final UserRepository userRepository;
