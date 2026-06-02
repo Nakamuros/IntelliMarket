@@ -9,4 +9,5 @@ import java.util.List;
 public interface OrderRepository extends JpaRepository<Order, Long> {
     // Para ver el historial de un cliente específico, ordenado por la más reciente
     List<Order> findByUserIdOrderByCreatedAtDesc(Long userId);
+    //Boolean existsById(Long id);
 }

@@ -8,11 +8,20 @@ import com.intellimarket.api.order.dto.*;
 import com.intellimarket.api.order.mapper.OrderMapper;
 import com.intellimarket.api.order.model.*;
 import com.intellimarket.api.order.repository.*;
+import com.intellimarket.api.payments.dto.PaymentStatusRequest;
+import com.intellimarket.api.payments.dto.PaymentsRequest;
+import com.intellimarket.api.payments.dto.PaymentsResponse;
+import com.intellimarket.api.payments.mapper.PaymentsMapper;
+import com.intellimarket.api.payments.model.Method;
+import com.intellimarket.api.payments.model.PaymentStatus;
+import com.intellimarket.api.payments.model.Payments;
+import com.intellimarket.api.payments.repository.PaymentsRepository;
 import com.intellimarket.api.product.model.Product;
 import com.intellimarket.api.product.repository.ProductRepository;
 import com.intellimarket.api.store.model.Store;
 import com.intellimarket.api.store.repository.StoreRepository;
 import com.intellimarket.api.order.exception.InsufficientStockException;
+import com.intellimarket.api.shared.exception.BusinessRuleException;
 import com.intellimarket.api.shared.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -20,6 +29,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 
@@ -34,8 +44,12 @@ public class OrderServiceImpl implements IOrderService {
     private final OrderMapper orderMapper;
     private final InventoryRepository inventoryRepository;
 
+    private final PaymentsRepository paymentsRepository;
+    private final PaymentsMapper paymentsMapper;
+
     @Override
-    @Transactional(readOnly = true)
+    //@Transactional(readOnly = true)
+    @Transactional
     public CartResponseDTO getCartByEmail(String email) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado"));
@@ -160,6 +174,7 @@ public class OrderServiceImpl implements IOrderService {
                 .totalAmount(BigDecimal.ZERO)
                 .build();
 
+
         List<OrderItem> orderItems = cart.getItems().stream()
                 .map(cartItem -> {
                     Product product = cartItem.getProduct();
@@ -197,10 +212,91 @@ public class OrderServiceImpl implements IOrderService {
         order.setTotalAmount(totalOrder);
 
         Order savedOrder = orderRepository.save(order);
+        // Payments
+        Payments payments = Payments.builder()
+                .order(savedOrder)
+                .externalReference("PAY-" + UUID.randomUUID())
+                .method(Method.CARD)
+                .status(PaymentStatus.PENDIENT.name())
+                .amount(totalOrder)
+                .build();
+
         cart.getItems().clear();
         cartRepository.save(cart);
 
+        paymentsRepository.save(payments);
+
         return orderMapper.orderToOrderResponseDTO(savedOrder);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PaymentsResponse seePayment(String email, Long orderId) {
+        getOwnedOrder(email, orderId);
+
+        Payments payments = paymentsRepository.findByOrderId(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("No se encontró ningún pago asociado a la orden: " + orderId));
+
+        return paymentsMapper.toResponse(payments);
+    }
+
+    @Override
+    @Transactional
+    public PaymentsResponse updatePaymentStatus(String email, Long orderId, PaymentStatusRequest request) {
+        Order order = getOwnedOrder(email, orderId);
+
+        Payments payments = paymentsRepository.findByOrderId(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("No se encontró ningún pago asociado a la orden: " + orderId));
+
+        if (!PaymentStatus.PENDIENT.name().equals(payments.getStatus())) {
+            throw new BusinessRuleException("El pago ya fue procesado.");
+        }
+
+        if (request.status() == PaymentStatus.PENDIENT) {
+            throw new BusinessRuleException("El pago no puede volver a estado PENDIENT.");
+        }
+
+        payments.setStatus(request.status().name());
+
+        if (request.status() == PaymentStatus.COMPLETED) {
+            order.setStatus("COMPLETED");
+        } else if (request.status() == PaymentStatus.CANCELLED) {
+            order.setStatus("FAILED");
+            restoreInventoryForCancelledPayment(order);
+        }
+
+        orderRepository.save(order);
+        Payments savedPayments = paymentsRepository.save(payments);
+        return paymentsMapper.toResponse(savedPayments);
+    }
+
+    private Order getOwnedOrder(String email, Long orderId) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado"));
+
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Orden no encontrada con ID: " + orderId));
+
+        if (!order.getUser().getId().equals(user.getId())) {
+            throw new ResourceNotFoundException("Orden no encontrada con ID: " + orderId);
+        }
+
+        return order;
+    }
+
+    private void restoreInventoryForCancelledPayment(Order order) {
+        for (OrderItem item : order.getItems()) {
+            Inventory inventory = inventoryRepository.findByProductIdAndStoreId(
+                    item.getProduct().getId(),
+                    order.getStore().getId()
+            ).orElseThrow(() -> new ResourceNotFoundException(
+                    "Inventario no encontrado para el producto: " + item.getProduct().getName()
+            ));
+
+            inventory.setStock(inventory.getStock() + item.getQuantity());
+            inventory.setState(1);
+            inventoryRepository.save(inventory);
+        }
     }
 
     @Override
