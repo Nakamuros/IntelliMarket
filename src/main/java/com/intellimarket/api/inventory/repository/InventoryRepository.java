@@ -7,11 +7,11 @@ import java.util.List;
 import java.util.Optional;
 
 public interface InventoryRepository extends JpaRepository<Inventory, Long> {
-    List<Inventory> findByStoreIdAndState(Long storeId, Integer state);
+    Optional<Inventory> findByProductIdAndStoreId(Long productId, Long storeId);
 
     Optional<Inventory> findByProductIdAndStoreIdAndState(Long productId, Long storeId, Integer state);
 
-    Optional<Inventory> findByProductIdAndStoreId(Long productId, Long storeId);
+    List<Inventory> findByStoreIdAndState(Long storeId, Integer state);
 
-    List<Inventory> findByStoreIdAndStockLessThanAndState(Long storeId, Integer stock, Integer state);
+    List<Inventory> findByStoreIdAndStockLessThan(Long storeId, Integer stock);
 }

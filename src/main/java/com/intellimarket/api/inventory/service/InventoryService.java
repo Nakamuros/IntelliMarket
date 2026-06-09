@@ -38,15 +38,21 @@ public class InventoryService implements IInventoryService {
                 .category(request.category())
                 .description(request.description())
                 .unitPrice(request.price()) // Assuming price maps to unitPrice in Product
-                .stock(request.stock())
+                //.stock(request.stock())
+                //.status(request.stock() > 0 ? 1 : 0)
                 .build());
 
         Store store = storeRepository.findById(store_id)
                 .orElseThrow(() -> new ResourceNotFoundException("Tienda no encontrada"));
 
         // Guardar producto en bodega de tienda o su inventario (Inventory)
-        Inventory inventory = inventoryRepository.save(Inventory.builder().product(product).
-                store(store).stock(request.stock()).state(1).price(request.price()).build());
+        Inventory inventory = inventoryRepository.save(Inventory.builder().product(product)
+                .store(store)
+                .stock(request.stock())
+                .price(request.price())
+                .stock(request.stock()) // El stock inicial va aquí
+                .price(request.price())
+                .build());
 
         // Registrar movimiento de historial en Inventory_Movements
         // Tipo de movimiento: Compra
@@ -64,7 +70,7 @@ public class InventoryService implements IInventoryService {
         Product product = productRepository.findById(product_id).orElseThrow(()-> new
                 ResourceNotFoundException("Producto no existe"));
 
-        Inventory inventory = inventoryRepository.findByProductIdAndStoreIdAndState(product_id, store_id, 1).
+        Inventory inventory = inventoryRepository.findByProductIdAndStoreId(product_id, store_id).
                 orElseThrow(()-> new ResourceNotFoundException("Producto no asignado a esta tienda"));
 
         // Actualizamos según la US-06
@@ -91,7 +97,7 @@ public class InventoryService implements IInventoryService {
     @Override
     // Alerta de stock crítico con productos con menos de 10 unidades
     public List<ProductsResponse> getCriticalStock(Long store_id){
-        List<Inventory> criticalItems = inventoryRepository.findByStoreIdAndStockLessThanAndState(store_id, 10, 1);
+        List<Inventory> criticalItems = inventoryRepository.findByStoreIdAndStockLessThan(store_id, 10);
 
         // Eliminamos el throw para no generar un 404 innecesario.
         // El Controller ya maneja el mensaje si la lista viene vacía.

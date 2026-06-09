@@ -36,13 +36,15 @@ public class Product {
     @Column(name = "unit_price", nullable = false, precision = 10, scale = 2)
     private BigDecimal unitPrice;
 
-    @Column(nullable = false)
+    // Legacy snapshot fields kept for schema compatibility.
+    // Store-specific stock is managed by Inventory.
+    /*@Column(nullable = false, updatable = false)
     @Builder.Default
-    private Integer stock = 0;
+    private Integer stock = 0;*/
 
-    @Column(nullable = false)
+    /*@Column(nullable = false, updatable = false)
     @Builder.Default
-    private Integer status = 1; // 1: Disponible, 0: Agotado
+    private Integer status = 1; // 1: Disponible, 0: Agotado*/
 
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

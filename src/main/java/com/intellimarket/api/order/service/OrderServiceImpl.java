@@ -59,8 +59,8 @@ public class OrderServiceImpl implements IOrderService {
 
         List<CartItemResponseDTO> items = cart.getItems().stream()
                 .map(item -> {
-                    Inventory inventory = inventoryRepository.findByProductIdAndStoreIdAndState
-                                    (item.getProduct().getId(), item.getStore().getId(), 1)
+                    Inventory inventory = inventoryRepository.findByProductIdAndStoreId
+                                    (item.getProduct().getId(), item.getStore().getId())
                             .orElseThrow(() -> new ResourceNotFoundException("El producto no está disponible en la tienda " + item.getStore().getName()));
 
                     BigDecimal subtotal = inventory.getPrice()
@@ -181,16 +181,15 @@ public class OrderServiceImpl implements IOrderService {
                     Inventory inventory = inventoryRepository.findByProductIdAndStoreIdAndState(product.getId(), request.storeId(), 1)
                             .orElseThrow(() -> new ResourceNotFoundException("El producto no está disponible en esta tienda"));
                     
+                    if (inventory.getStock() <= 0) {
+                        throw new InsufficientStockException("El producto " + product.getName() + " está agotado.");
+                    }
+
                     if (inventory.getStock() < cartItem.getQuantity()) {
                         throw new InsufficientStockException("Stock insuficiente para el producto: " + product.getName());
                     }
 
                     inventory.setStock(inventory.getStock() - cartItem.getQuantity());
-
-                    if (inventory.getStock() == 0) {
-                        inventory.setState(0);
-                    }
-                    
                     inventoryRepository.save(inventory);
 
                     BigDecimal unitPrice = inventory.getPrice(); // Use store-specific price
@@ -294,7 +293,6 @@ public class OrderServiceImpl implements IOrderService {
             ));
 
             inventory.setStock(inventory.getStock() + item.getQuantity());
-            inventory.setState(1);
             inventoryRepository.save(inventory);
         }
     }

@@ -39,7 +39,7 @@ public class Inventory {
     @Column(nullable = false)
     private Integer stock;
 
-    //@Enumerated(EnumType.STRING)
+    // Availability flag kept for compatibility with the existing schema.
     @Column(name = "state", nullable = false)
     private Integer state;
 
@@ -51,8 +51,19 @@ public class Inventory {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
+    @PrePersist
+    protected void onCreate() {
+        syncAvailability();
+        updatedAt = LocalDateTime.now();
+    }
+
     @PreUpdate
     protected void onUpdate() {
+        syncAvailability();
         updatedAt = LocalDateTime.now();
+    }
+
+    private void syncAvailability() {
+        state = (stock != null && stock > 0) ? 1 : 0;
     }
 }

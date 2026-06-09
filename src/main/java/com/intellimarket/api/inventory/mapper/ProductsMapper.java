@@ -15,5 +15,6 @@ public interface ProductsMapper {
     @Mapping(target = "description", source = "product.description")
     @Mapping(target = "stock", source = "inventory.stock")
     @Mapping(target = "price", source = "inventory.price")
+    @Mapping(target = "status", source = "inventory.state")
     ProductsResponse toResponse(Product product, Inventory inventory);
 }
