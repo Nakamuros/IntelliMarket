@@ -48,10 +48,9 @@ public class InventoryService implements IInventoryService {
         // Guardar producto en bodega de tienda o su inventario (Inventory)
         Inventory inventory = inventoryRepository.save(Inventory.builder().product(product)
                 .store(store)
-                .stock(request.stock())
-                .price(request.price())
                 .stock(request.stock()) // El stock inicial va aquí
                 .price(request.price())
+                .state(request.stock() > 0 ? 1 : 0)
                 .build());
 
         // Registrar movimiento de historial en Inventory_Movements
