@@ -28,26 +28,36 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
 
     private final UserRepository userRepository;
+    private final org.springframework.web.cors.CorsConfigurationSource corsConfigurationSource;
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http, JwtAuthenticationFilter jwtFilter) throws Exception {
         http
-                //1. Apagamos CSRF porque usaremos tokens
+                // 1. ACTIVAMOS TU CONFIGURACIÓN GLOBAL DE CORS (Crucial para el puerto 4200)
+                .cors(cors -> cors.configurationSource(corsConfigurationSource))
+
+                // 2. Apagamos CSRF porque usaremos tokens
                 .csrf(AbstractHttpConfigurer::disable)
 
-                //2. Apagamos el estado (Stateless)
+                // 3. Apagamos el estado (Stateless)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
-                //3. Configuramos las reglas de acceso
+                // 4. Configuramos las reglas de acceso
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/v1/auth/**").permitAll() 
-                        .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll() 
+                        .requestMatchers("/api/v1/auth/**").permitAll()
+                        .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
+
+                        // 🛠️ LIBERAMOS TU INVENTARIO (Cambia la ruta exacta si tu endpoint tiene /v1/)
+                        .requestMatchers("/api/inventory/**").permitAll()
+                        .requestMatchers("/api/v1/inventory/**").permitAll() // Por si usas la versión v1
+
+                        // Todo lo demás sigue protegido
                         .anyRequest().authenticated()
                 )
 
-                //4. Ponemos a nuestro guardia ANTES del guardia por defecto
+                // 5. Ponemos a nuestro guardia ANTES del guardia por defecto
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
-            
+
         return http.build();
     }
 

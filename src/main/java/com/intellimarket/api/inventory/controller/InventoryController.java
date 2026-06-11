@@ -21,7 +21,7 @@ import java.util.Map;
 @RequestMapping("/api/inventory")
 //@RequestMapping("/api/inventory/stores/{storeId}")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
+//@CrossOrigin(origins = "*")
 @Tag(name = "Inventory Management", description = "Operaciones de la épica de Inventario (IntelliMarket)")
 
 public class InventoryController {
