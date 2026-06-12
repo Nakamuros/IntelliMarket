@@ -48,4 +48,12 @@ public class AuthController {
         authService.logout(request.refreshToken());
         return ResponseEntity.noContent().build(); // Devuelve un 204 (Éxito, sin contenido)
     }
+
+    //@PreAuthorize("isAuthenticated()")
+    //@PutMapping("/change_password")
+    //public ResponseEntity<Void> changePassword(
+    //        Authentication authentication,
+    //        @Valid @RequestBody ChangePasswordRequest request) {
+    //    authService.changePassword(authentication.getName(), request);
+    //    return ResponseEntity.noContent().build(); // Devuelve un 204 (É
 }

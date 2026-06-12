@@ -38,6 +38,10 @@ public class User implements UserDetails {
     @Column(nullable = false, length = 20)
     private Role role;
 
+    //numero
+    //@Column(length = 15)
+    //private String phoneNumber;
+
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         // Aquí le decimos a Spring: "Toma el rol de este usuario y ponle el prefijo ROLE_"

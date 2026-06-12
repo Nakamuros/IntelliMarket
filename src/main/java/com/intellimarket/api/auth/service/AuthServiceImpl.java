@@ -146,4 +146,15 @@ public class AuthServiceImpl implements IAuthService {
         // Marcamos el Refresh Token como revocado (revoked = true)
         refreshTokenService.revoke(refreshToken);
     }
+
+    //@Override
+    //public void changePassword(String email, ChangePasswordRequest request) {
+    //    User user = userRepository.findByEmail(email)
+    //          .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+    //  if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPassword())) {
+    //      throw new InvalidCredentialsException();
+    //}
+    //
+    //    user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+    //    userRepository.save(user);
 }

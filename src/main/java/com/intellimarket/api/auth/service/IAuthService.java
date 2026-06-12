@@ -11,4 +11,6 @@ public interface IAuthService {
     AuthResponse login(LoginRequest request);
     AuthResponse refresh(String refreshToken);
     void logout(String refreshToken);
+
+    //void changePassword(String email, ChangePasswordRequest request);
 }

@@ -26,5 +26,9 @@ public class RegisterRequest {
 
     @Size(max = 30) @NotBlank(message = "Last name is required")
     private String lastName;
+
+    //Registrar tambien numero telefonico
+    //@Size(max = 9) @NotBlank(message = "Phone number is required")
+    //private String phoneNumber;
 }
 
