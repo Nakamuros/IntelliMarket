@@ -19,6 +19,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/inventory")
+
 //@RequestMapping("/api/inventory/stores/{storeId}")
 @RequiredArgsConstructor
 //@CrossOrigin(origins = "*")
