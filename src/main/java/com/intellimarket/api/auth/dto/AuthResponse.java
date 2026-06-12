@@ -17,6 +17,7 @@ public class AuthResponse {
     private String firstName;
     private String lastName;
     private String token;
+    private String role;
 
     public static AuthResponse fromUser(User user, String token) {
         return AuthResponse.builder()
@@ -24,6 +25,7 @@ public class AuthResponse {
                 .email(user.getEmail())
                 .firstName(user.getFirstName())
                 .lastName(user.getLastName())
+                .role(user.getRole().name())
                 .token(token)
                 .build();
     }
