@@ -45,6 +45,7 @@ public class SecurityConfig {
                 // 4. Configuramos las reglas de acceso
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/v1/auth/**").permitAll()
+                        .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
 
                         // 🛠️ LIBERAMOS TU INVENTARIO (Cambia la ruta exacta si tu endpoint tiene /v1/)
