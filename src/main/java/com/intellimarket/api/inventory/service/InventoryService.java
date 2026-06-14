@@ -77,7 +77,7 @@ public class InventoryService implements IInventoryService {
         product.setName(request.name());
         inventory.setStock(request.stock());
         product.setCategory(request.category());
-        inventory.setPrice(request.unitPrice());
+        product.setUnitPrice(request.unitPrice());
 
         productRepository.save(product);
         inventoryRepository.save(inventory);
