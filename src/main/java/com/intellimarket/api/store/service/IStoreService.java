@@ -12,4 +12,5 @@ public interface IStoreService {
     List<StoreResponse> getAllStores();
     StoreResponse getStoreById(Long id);
     Optional<Store> findByOwnerEmail(String email);
+    StoreResponse updateStore(Long id, StoreRequest request);
 }
