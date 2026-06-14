@@ -12,6 +12,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/stores")
@@ -37,5 +38,13 @@ public class StoreController {
     @GetMapping("/{id}")
     public ResponseEntity<StoreResponse> getStoreById(@PathVariable Long id) {
         return ResponseEntity.ok(storeService.getStoreById(id));
+    }
+
+    @GetMapping("/my-store")
+    public ResponseEntity<?> getMyStore(Authentication authentication) {
+        String email = authentication.getName();
+        return storeService.findByOwnerEmail(email)
+                .map(store -> ResponseEntity.ok(Map.of("id", store.getId(), "name", store.getName())))
+                .orElse(ResponseEntity.notFound().build());
     }
 }

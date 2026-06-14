@@ -7,7 +7,7 @@ public record ProductsResponse (
         String category,
         String description,
         Integer stock,
-        BigDecimal price,
+        BigDecimal unitPrice,
         Long id,
         Integer status
 ) {}

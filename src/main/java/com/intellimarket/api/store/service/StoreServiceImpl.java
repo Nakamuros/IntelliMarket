@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -53,5 +54,11 @@ public class StoreServiceImpl implements IStoreService {
         return storeRepository.findById(id)
             .map(storeMapper::toResponse)
             .orElseThrow(() -> new ResourceNotFoundException("Tienda no encontrada con ID: " + id));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<Store> findByOwnerEmail(String email) {
+        return storeRepository.findByOwnerEmail(email); // asumiendo que Store tiene owner (User)
     }
 }

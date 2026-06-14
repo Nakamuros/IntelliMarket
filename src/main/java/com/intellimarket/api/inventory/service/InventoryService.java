@@ -37,7 +37,7 @@ public class InventoryService implements IInventoryService {
                 .name(request.name())
                 .category(request.category())
                 .description(request.description())
-                .unitPrice(request.price()) // Assuming price maps to unitPrice in Product
+                .unitPrice(request.unitPrice()) // Assuming price maps to unitPrice in Product
                 //.stock(request.stock())
                 //.status(request.stock() > 0 ? 1 : 0)
                 .build());
@@ -49,7 +49,7 @@ public class InventoryService implements IInventoryService {
         Inventory inventory = inventoryRepository.save(Inventory.builder().product(product)
                 .store(store)
                 .stock(request.stock()) // El stock inicial va aquí
-                .price(request.price())
+                .price(request.unitPrice())
                 .state(request.stock() > 0 ? 1 : 0)
                 .build());
 
@@ -77,7 +77,7 @@ public class InventoryService implements IInventoryService {
         product.setName(request.name());
         inventory.setStock(request.stock());
         product.setCategory(request.category());
-        inventory.setPrice(request.price());
+        inventory.setPrice(request.unitPrice());
 
         productRepository.save(product);
         inventoryRepository.save(inventory);
