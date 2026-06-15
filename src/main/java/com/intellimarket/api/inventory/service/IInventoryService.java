@@ -20,4 +20,7 @@ public interface IInventoryService {
     List<ProductsResponse> getCriticalStock(Long store_Id);
 
     // US-09: Cambiar estado automáticamente en productos cuando se agotan
+
+    // Obtener ProductResponse por su id
+    ProductsResponse getProductByIdAndStore(Long productId, Long storeId);
 }

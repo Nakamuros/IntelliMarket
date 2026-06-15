@@ -108,6 +108,19 @@ public class InventoryService implements IInventoryService {
     //@Override
     // US-09: El estado cambia
 
+    @Override
+    @Transactional(readOnly = true)
+    // US-10: Obtener un producto específico con su stock de tienda
+    public ProductsResponse getProductByIdAndStore(Long productId, Long storeId) {
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new ResourceNotFoundException("El producto solicitado no existe"));
+
+        Inventory inventory = inventoryRepository.findByProductIdAndStoreId(productId, storeId)
+                .orElseThrow(() -> new ResourceNotFoundException("El producto no está registrado en esta tienda"));
+
+        return productsMapper.toResponse(product, inventory);
+    }
+
 
     private void saveMovement(Product p, Store sId, Integer qty, Type type, Reference_Type ref) {
         InventoryMovement m = InventoryMovement.builder()

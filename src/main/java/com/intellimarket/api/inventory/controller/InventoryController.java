@@ -86,4 +86,11 @@ public class InventoryController {
 
         return ResponseEntity.ok(alerts);
     }
+
+    @GetMapping("/store/{storeId}/products/{productId}")
+    public ResponseEntity<ProductsResponse> getProductDetail(
+            @PathVariable Long storeId,
+            @PathVariable Long productId) {
+        return ResponseEntity.ok(inventoryService.getProductByIdAndStore(productId, storeId));
+    }
 }
