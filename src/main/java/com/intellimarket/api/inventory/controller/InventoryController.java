@@ -18,7 +18,7 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/inventory")
+@RequestMapping("/api/v1/inventory")
 
 //@RequestMapping("/api/inventory/stores/{storeId}")
 @RequiredArgsConstructor
