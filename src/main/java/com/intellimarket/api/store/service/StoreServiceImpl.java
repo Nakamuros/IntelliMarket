@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -53,5 +54,31 @@ public class StoreServiceImpl implements IStoreService {
         return storeRepository.findById(id)
             .map(storeMapper::toResponse)
             .orElseThrow(() -> new ResourceNotFoundException("Tienda no encontrada con ID: " + id));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<Store> findByOwnerEmail(String email) {
+        return storeRepository.findByOwnerEmail(email); // asumiendo que Store tiene owner (User)
+    }
+
+    @Override
+    @Transactional
+    public StoreResponse updateStore(Long id, StoreRequest request){
+        // 1. Buscamos la tienda existente o lanzamos excepción si no existe
+        Store store = storeRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Tienda no encontrada con ID: " + id));
+
+        // 2. Actualizamos los campos permitidos desde el DTO request
+        store.setName(request.name());
+        store.setAddress(request.address());
+        store.setDistrict(request.district());
+
+        // Opcional: si en tu StoreRequest manejas el estado activo/inactivo podías mapearlo aquí.
+        // Por ahora mantenemos los datos de identidad comercial que pasaste al crearla.
+
+        // 3. Guardamos los cambios y los mapeamos a la respuesta DTO estructurada
+        Store updatedStore = storeRepository.save(store);
+        return storeMapper.toResponse(updatedStore);
     }
 }

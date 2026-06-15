@@ -20,7 +20,7 @@ public record ProductsRequest (
         @NotNull
         @DecimalMin(value = "0.10", message = "El precio no debe ser menor a 10 céntimos")
         @DecimalMax(value = "200.00", message = "El precio no puede superar 200 soles")
-        BigDecimal price,
+        BigDecimal unitPrice,
 
         @NotNull
         @Min(value = 0, message = "El stock inicial no puede ser negativo")

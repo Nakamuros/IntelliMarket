@@ -1,5 +1,6 @@
 package com.intellimarket.api.auth.dto;
 
+import com.intellimarket.api.auth.model.Role;
 import com.intellimarket.api.auth.model.User;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -16,8 +17,8 @@ public class AuthResponse {
     private String email;
     private String firstName;
     private String lastName;
+    private Role role;   // ← CAMPO AGREGADO
     private String token;
-    private String role;
 
     public static AuthResponse fromUser(User user, String token) {
         return AuthResponse.builder()
@@ -25,7 +26,7 @@ public class AuthResponse {
                 .email(user.getEmail())
                 .firstName(user.getFirstName())
                 .lastName(user.getLastName())
-                .role(user.getRole().name())
+                .role(user.getRole())   // ← MAPEADO DESDE USE
                 .token(token)
                 .build();
     }
