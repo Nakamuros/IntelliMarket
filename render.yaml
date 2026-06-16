@@ -1,0 +1,39 @@
+databases:
+  - name: intellimarket-db
+    databaseName: intellimarket
+    user: juanrv27
+    plan: free
+
+services:
+  # Backend (Spring Boot Docker)
+  - type: web
+    name: intellimarket-api
+    env: docker
+    plan: free
+    region: ohio
+    dockerContext: .
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: / # Asegúrate de que este endpoint exista
+
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
+
+      # Conexión a la BD (los valores se toman de pagoya-db)
+      - key: DB_HOST
+        fromDatabase: { name: intellimarket-db, property: host }
+      - key: DB_PORT
+        fromDatabase: { name: intellimarket-db, property: port }
+      - key: DB_NAME
+        fromDatabase: { name: intellimarket-db, property: database }
+      - key: DB_USERNAME
+        fromDatabase: { name: intellimarket-db, property: user }
+      - key: DB_PASSWORD
+        fromDatabase: { name: intellimarket-db, property: password }
+      # Secreto JWT: Render lo genera aleatorio y seguro (>=32 bytes)
+      - key: JWT_SECRET
+        generateValue: true
+      # Orígenes permitidos para CORS (tu frontend de Netlify).
+      # sync: false => Render NO lo autocompleta; lo escribes tú.
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false
