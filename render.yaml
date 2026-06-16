@@ -3,6 +3,7 @@ databases:
     databaseName: intellimarket
     user: juanrv27
     plan: free
+    region: ohio
 
 services:
   # Backend (Spring Boot Docker)
