@@ -1,5 +1,4 @@
 package com.intellimarket.api.supplier.service;
-import com.intellimarket.api.product.model.Product; //Esto cambiar cuando se asocie con la verdadera tabla products
 
 import com.intellimarket.api.product.model.Product;
 import com.intellimarket.api.supplier.dto.ProviderRequestDTO;

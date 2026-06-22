@@ -24,7 +24,10 @@ public record ProductsRequest (
 
         @NotNull
         @Min(value = 0, message = "El stock inicial no puede ser negativo")
-        Integer stock
+        Integer stock,
+
+        @NotBlank
+        String imageUrl
 
         //@NotNull
         //Long user_id,

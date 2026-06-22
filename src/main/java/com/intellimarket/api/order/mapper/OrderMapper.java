@@ -16,14 +16,14 @@ public interface OrderMapper {
     OrderResponseDTO orderToOrderResponseDTO(Order order);
 
     @Mapping(source = "orderItem.product.name", target = "productName")
-    @Mapping(source = "orderItem.product.image", target = "imageUrl")
+    @Mapping(source = "orderItem.product.imageUrl", target = "imageUrl")
     OrderItemResponseDTO orderItemToOrderItemResponseDTO(OrderItem orderItem);
 
     @Mapping(target = "total", ignore = true)
     CartResponseDTO cartToCartResponseDTO(Cart cart);
 
     @Mapping(source = "cartItem.product.name", target = "productName")
-    @Mapping(source = "cartItem.product.image", target = "imageUrl")
+    @Mapping(source = "cartItem.product.imageUrl", target = "imageUrl")
     @Mapping(source = "cartItem.product.unitPrice", target = "unitPrice")
     @Mapping(target = "subtotal", ignore = true)
     CartItemResponseDTO cartItemToCartItemResponseDTO(CartItem cartItem);

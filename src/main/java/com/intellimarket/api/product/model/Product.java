@@ -1,8 +1,20 @@
 package com.intellimarket.api.product.model;
 
 import com.intellimarket.api.inventory.model.Category;
-import jakarta.persistence.*;
-import lombok.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.Table;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -30,21 +42,11 @@ public class Product {
     @Column(length = 130)
     private String description;
 
-    @Column
-    private String image;
+    @Column(name = "image_url", columnDefinition = "TEXT")
+    private String imageUrl;
 
     @Column(name = "unit_price", nullable = false, precision = 10, scale = 2)
     private BigDecimal unitPrice;
-
-    // Legacy snapshot fields kept for schema compatibility.
-    // Store-specific stock is managed by Inventory.
-    /*@Column(nullable = false, updatable = false)
-    @Builder.Default
-    private Integer stock = 0;*/
-
-    /*@Column(nullable = false, updatable = false)
-    @Builder.Default
-    private Integer status = 1; // 1: Disponible, 0: Agotado*/
 
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

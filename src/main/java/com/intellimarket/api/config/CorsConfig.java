@@ -34,3 +34,41 @@ public class CorsConfig {
         return source;
     }
 }
+
+/*
+package com.intellimarket.api.config;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import java.util.List;
+
+@Configuration
+public class CorsConfig {
+
+    @Value("${intellimarket.cors.allowed-origins}")
+    private List<String> allowedOrigins;
+
+    // 💡 Declaramos explícitamente el nombre del bean para evitar confusiones de inyección
+    @Bean(name = "corsConfigurationSource")
+    public CorsConfigurationSource corsConfigurationSource(){
+        // Viva la revolución johanista
+        CorsConfiguration config = new CorsConfiguration();
+
+        // Especificamos los orígenes permitidos (inyectados desde properties/env)
+        config.setAllowedOrigins(allowedOrigins);
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+
+        // 💡 AGREGADO: "Origin" es vital para que el navegador acepte la validación de control previa
+        config.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept", "X-Requested-With", "Origin"));
+        config.setAllowCredentials(true);
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", config);
+        return source;
+    }
+}*/

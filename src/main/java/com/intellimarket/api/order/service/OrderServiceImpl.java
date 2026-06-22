@@ -71,7 +71,7 @@ public class OrderServiceImpl implements IOrderService {
                             inventory.getPrice(),
                             item.getQuantity(),
                             subtotal,
-                            item.getProduct().getImage()
+                            item.getProduct().getImageUrl()
                     );
                 }).toList();
 
