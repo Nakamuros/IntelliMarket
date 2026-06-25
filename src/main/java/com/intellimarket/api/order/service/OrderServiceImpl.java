@@ -9,7 +9,6 @@ import com.intellimarket.api.order.mapper.OrderMapper;
 import com.intellimarket.api.order.model.*;
 import com.intellimarket.api.order.repository.*;
 import com.intellimarket.api.payments.dto.PaymentStatusRequest;
-import com.intellimarket.api.payments.dto.PaymentsRequest;
 import com.intellimarket.api.payments.dto.PaymentsResponse;
 import com.intellimarket.api.payments.mapper.PaymentsMapper;
 import com.intellimarket.api.payments.model.Method;
@@ -27,9 +26,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 
@@ -48,12 +45,11 @@ public class OrderServiceImpl implements IOrderService {
     private final PaymentsMapper paymentsMapper;
 
     @Override
-    //@Transactional(readOnly = true)
     @Transactional
     public CartResponseDTO getCartByEmail(String email) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado"));
-        
+
         Cart cart = cartRepository.findByUserId(user.getId())
                 .orElseGet(() -> cartRepository.save(Cart.builder().user(user).build()));
 
@@ -75,11 +71,11 @@ public class OrderServiceImpl implements IOrderService {
                     );
                 }).toList();
 
-            BigDecimal total = items.stream()
-                    .map(CartItemResponseDTO::subtotal)
-                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal total = items.stream()
+                .map(CartItemResponseDTO::subtotal)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-            return new CartResponseDTO(cart.getId(), items, total);
+        return new CartResponseDTO(cart.getId(), items, total);
     }
 
 
@@ -116,7 +112,7 @@ public class OrderServiceImpl implements IOrderService {
         if (existingItem.isPresent()) {
             CartItem item = existingItem.get();
             int newQuantity = item.getQuantity() + request.quantity();
-            
+
             if (newQuantity > inventory.getStock()) {
                 throw new InsufficientStockException("La cantidad total en el carrito supera el stock disponible.");
             }
@@ -142,90 +138,110 @@ public class OrderServiceImpl implements IOrderService {
     public void clearCartByEmail(String email) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado"));
-        
+
         Cart cart = cartRepository.findByUserId(user.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("Carrito no encontrado"));
         cart.getItems().clear();
         cartRepository.save(cart);
     }
 
+    // ✅ FIX COMPLETO: ya no recibe un storeId único.
+    // Agrupamos los CartItem por la tienda que cada uno tiene asignada (item.getStore())
+    // y generamos UNA ORDEN + UN PAGO independiente por cada tienda.
     @Override
     @Transactional
-    public OrderResponseDTO placeOrderByEmail(String email, OrderRequestDTO request) {
+    public List<OrderResponseDTO> placeOrderByEmail(String email, OrderRequestDTO request) {
         User user = userRepository.findByEmail(email).orElseThrow(
                 () -> new ResourceNotFoundException("Usuario no encontrado")
         );
         Cart cart = cartRepository.findByUserId(user.getId()).orElseThrow(
-                ()-> new ResourceNotFoundException("Carrito no encontrado")
+                () -> new ResourceNotFoundException("Carrito no encontrado")
         );
-        
+
         if (cart.getItems().isEmpty()) {
             throw new ResourceNotFoundException("No puedes realizar una orden con el carrito vacío");
         }
 
-        Store store = storeRepository.findById(request.storeId()).orElseThrow(
-                () -> new ResourceNotFoundException("Tienda no encontrada")
-        );
+        // 1. Agrupar los items del carrito por tienda (cada CartItem ya conoce su Store real)
+        Map<Long, List<CartItem>> itemsByStore = cart.getItems().stream()
+                .collect(Collectors.groupingBy(item -> item.getStore().getId()));
 
-        Order order = Order.builder()
-                .user(user)
-                .store(store)
-                .status("PENDING")
-                .totalAmount(BigDecimal.ZERO)
-                .build();
+        List<Order> createdOrders = new ArrayList<>();
 
+        // 2. Por cada tienda, crear una Order independiente con sus propios items
+        for (Map.Entry<Long, List<CartItem>> entry : itemsByStore.entrySet()) {
+            Long storeId = entry.getKey();
+            List<CartItem> storeItems = entry.getValue();
 
-        List<OrderItem> orderItems = cart.getItems().stream()
-                .map(cartItem -> {
-                    Product product = cartItem.getProduct();
-                    Inventory inventory = inventoryRepository.findByProductIdAndStoreIdAndState(product.getId(), request.storeId(), 1)
-                            .orElseThrow(() -> new ResourceNotFoundException("El producto no está disponible en esta tienda"));
-                    
-                    if (inventory.getStock() <= 0) {
-                        throw new InsufficientStockException("El producto " + product.getName() + " está agotado.");
-                    }
+            Store store = storeRepository.findById(storeId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Tienda no encontrada"));
 
-                    if (inventory.getStock() < cartItem.getQuantity()) {
-                        throw new InsufficientStockException("Stock insuficiente para el producto: " + product.getName());
-                    }
+            Order order = Order.builder()
+                    .user(user)
+                    .store(store)
+                    .status("PENDING")
+                    .totalAmount(BigDecimal.ZERO)
+                    .build();
 
-                    inventory.setStock(inventory.getStock() - cartItem.getQuantity());
-                    inventoryRepository.save(inventory);
+            List<OrderItem> orderItems = storeItems.stream()
+                    .map(cartItem -> {
+                        Product product = cartItem.getProduct();
+                        // Buscamos el inventario EN LA TIENDA REAL del cartItem, no en un storeId externo
+                        Inventory inventory = inventoryRepository.findByProductIdAndStoreIdAndState(product.getId(), storeId, 1)
+                                .orElseThrow(() -> new ResourceNotFoundException(
+                                        "El producto " + product.getName() + " no está disponible en la tienda " + store.getName()));
 
-                    BigDecimal unitPrice = inventory.getPrice(); // Use store-specific price
-                    BigDecimal subtotal = unitPrice.multiply(new BigDecimal(cartItem.getQuantity()));
-                    
-                    return OrderItem.builder()
-                            .order(order)
-                            .product(product)
-                            .quantity(cartItem.getQuantity())
-                            .unitPrice(unitPrice)
-                            .subtotal(subtotal)
-                            .build();
-                }).collect(Collectors.toList());
+                        if (inventory.getStock() <= 0) {
+                            throw new InsufficientStockException("El producto " + product.getName() + " está agotado.");
+                        }
 
-        order.setItems(orderItems);
-        BigDecimal totalOrder = orderItems.stream()
-                .map(OrderItem::getSubtotal)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-        order.setTotalAmount(totalOrder);
+                        if (inventory.getStock() < cartItem.getQuantity()) {
+                            throw new InsufficientStockException("Stock insuficiente para el producto: " + product.getName());
+                        }
 
-        Order savedOrder = orderRepository.save(order);
-        // Payments
-        Payments payments = Payments.builder()
-                .order(savedOrder)
-                .externalReference("PAY-" + UUID.randomUUID())
-                .method(Method.CARD)
-                .status(PaymentStatus.PENDIENT.name())
-                .amount(totalOrder)
-                .build();
+                        inventory.setStock(inventory.getStock() - cartItem.getQuantity());
+                        inventoryRepository.save(inventory);
 
+                        BigDecimal unitPrice = inventory.getPrice();
+                        BigDecimal subtotal = unitPrice.multiply(new BigDecimal(cartItem.getQuantity()));
+
+                        return OrderItem.builder()
+                                .order(order)
+                                .product(product)
+                                .quantity(cartItem.getQuantity())
+                                .unitPrice(unitPrice)
+                                .subtotal(subtotal)
+                                .build();
+                    }).collect(Collectors.toList());
+
+            order.setItems(orderItems);
+            BigDecimal totalOrder = orderItems.stream()
+                    .map(OrderItem::getSubtotal)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            order.setTotalAmount(totalOrder);
+
+            Order savedOrder = orderRepository.save(order);
+
+            // 3. Crear un Payments independiente para CADA orden (Payments es @OneToOne con Order)
+            Payments payments = Payments.builder()
+                    .order(savedOrder)
+                    .externalReference("PAY-" + UUID.randomUUID())
+                    .method(Method.CARD)
+                    .status(PaymentStatus.PENDIENT.name())
+                    .amount(totalOrder)
+                    .build();
+            paymentsRepository.save(payments);
+
+            createdOrders.add(savedOrder);
+        }
+
+        // 4. Vaciar el carrito completo (todas las tiendas) una sola vez al final
         cart.getItems().clear();
         cartRepository.save(cart);
 
-        paymentsRepository.save(payments);
-
-        return orderMapper.orderToOrderResponseDTO(savedOrder);
+        return createdOrders.stream()
+                .map(orderMapper::orderToOrderResponseDTO)
+                .collect(Collectors.toList());
     }
 
     @Override
@@ -302,7 +318,7 @@ public class OrderServiceImpl implements IOrderService {
     public List<OrderResponseDTO> getOrderHistoryByEmail(String email) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado"));
-        
+
         List<Order> orders = orderRepository.findByUserIdOrderByCreatedAtDesc(user.getId());
         return orders.stream()
                 .map(orderMapper::orderToOrderResponseDTO)

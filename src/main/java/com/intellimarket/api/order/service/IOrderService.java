@@ -2,7 +2,6 @@ package com.intellimarket.api.order.service;
 
 import com.intellimarket.api.order.dto.*;
 import com.intellimarket.api.payments.dto.PaymentStatusRequest;
-import com.intellimarket.api.payments.dto.PaymentsRequest;
 import com.intellimarket.api.payments.dto.PaymentsResponse;
 
 import java.util.List;
@@ -14,7 +13,9 @@ public interface IOrderService {
     void clearCartByEmail(String email);
 
     // Gestion de Ordenes
-    OrderResponseDTO placeOrderByEmail(String email, OrderRequestDTO request);
+    // FIX: ahora devuelve una LISTA porque un carrito multi-tienda
+    // genera una orden independiente por cada tienda involucrada.
+    List<OrderResponseDTO> placeOrderByEmail(String email, OrderRequestDTO request);
     List<OrderResponseDTO> getOrderHistoryByEmail(String email);
     OrderResponseDTO getOrderById(Long orderId);
 

@@ -14,7 +14,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 
 @RestController
-@RequestMapping("/api/orders")
+@RequestMapping("/api/v1/orders")
 @RequiredArgsConstructor
 public class OrderController {
     private final IOrderService orderService;
@@ -46,14 +46,14 @@ public class OrderController {
     }
 
     //--Endpoint de ordenes--
+    // FIX: ya no recibe storeId en el body. El backend agrupa el carrito
+    // por tienda automáticamente y genera una orden por cada tienda.
     @PostMapping("/checkout")
     @PreAuthorize("hasRole('CUSTOMER')")
-    public ResponseEntity<OrderResponseDTO> placeOrder(
-            Authentication authentication,
-            @Valid @RequestBody OrderRequestDTO request) {
+    public ResponseEntity<List<OrderResponseDTO>> placeOrder(Authentication authentication) {
         String email = authentication.getName();
-        return ResponseEntity.status(HttpStatus.CREATED).
-                body(orderService.placeOrderByEmail(email, request));
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(orderService.placeOrderByEmail(email, new OrderRequestDTO()));
     }
 
     @GetMapping("/history")
