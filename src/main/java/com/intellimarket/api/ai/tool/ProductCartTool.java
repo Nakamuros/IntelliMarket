@@ -14,6 +14,7 @@ public class ProductCartTool {
     private final IInventoryService inventoryService;
     private final IOrderService orderService;
 
+
     public String verificarStockYDisponibilidad(String nombreProducto, Long storeId) {
         try {
             var productos = inventoryService.getStockByStore(storeId);
