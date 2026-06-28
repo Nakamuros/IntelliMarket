@@ -53,31 +53,8 @@ public class OrderServiceImpl implements IOrderService {
         Cart cart = cartRepository.findByUserId(user.getId())
                 .orElseGet(() -> cartRepository.save(Cart.builder().user(user).build()));
 
-        List<CartItemResponseDTO> items = cart.getItems().stream()
-                .map(item -> {
-                    Inventory inventory = inventoryRepository.findByProductIdAndStoreId
-                                    (item.getProduct().getId(), item.getStore().getId())
-                            .orElseThrow(() -> new ResourceNotFoundException("El producto no está disponible en la tienda " + item.getStore().getName()));
-
-                    BigDecimal subtotal = inventory.getPrice()
-                            .multiply(new BigDecimal(item.getQuantity()));
-                    return new CartItemResponseDTO(
-                            item.getId(),
-                            item.getProduct().getName(),
-                            inventory.getPrice(),
-                            item.getQuantity(),
-                            subtotal,
-                            item.getProduct().getImageUrl()
-                    );
-                }).toList();
-
-        BigDecimal total = items.stream()
-                .map(CartItemResponseDTO::subtotal)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        return new CartResponseDTO(cart.getId(), items, total);
+        return buildCartResponse(cart);
     }
-
 
     @Override
     @Transactional
@@ -133,6 +110,63 @@ public class OrderServiceImpl implements IOrderService {
         return getCartByEmail(email);
     }
 
+    // NUEVO: actualiza solo la cantidad de un CartItem ya existente.
+    // El itemId es el id propio del CartItem (item.getId() en CartItemResponseDTO),
+    // por lo que el frontend NO necesita conocer productId ni storeId para esta operación.
+    @Override
+    @Transactional
+    public CartResponseDTO updateCartItemQuantity(String email, Long itemId, UpdateCartItemRequestDTO request) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado"));
+
+        Cart cart = cartRepository.findByUserId(user.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("Carrito no encontrado"));
+
+        CartItem item = cart.getItems().stream()
+                .filter(i -> i.getId().equals(itemId))
+                .findFirst()
+                .orElseThrow(() -> new ResourceNotFoundException("El producto no se encuentra en tu carrito"));
+
+        // Validamos contra el stock real de la tienda asociada a ESE item específico
+        Inventory inventory = inventoryRepository.findByProductIdAndStoreIdAndState(
+                        item.getProduct().getId(), item.getStore().getId(), 1)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "El producto ya no está disponible en la tienda " + item.getStore().getName()));
+
+        if (request.quantity() > inventory.getStock()) {
+            throw new InsufficientStockException(
+                    "Solo hay " + inventory.getStock() + " unidades disponibles de " + item.getProduct().getName());
+        }
+
+        item.setQuantity(request.quantity());
+        cartRepository.save(cart);
+
+        return getCartByEmail(email);
+    }
+
+    // NUEVO: elimina un item del carrito por su propio id.
+    // El frontend (cart.service.ts) ya estaba llamando a este endpoint,
+    // pero no existía la implementación en el backend.
+    @Override
+    @Transactional
+    public CartResponseDTO removeItemFromCart(String email, Long itemId) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado"));
+
+        Cart cart = cartRepository.findByUserId(user.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("Carrito no encontrado"));
+
+        boolean removed = cart.getItems().removeIf(item -> item.getId().equals(itemId));
+
+        if (!removed) {
+            throw new ResourceNotFoundException("El producto no se encuentra en tu carrito");
+        }
+
+        cartRepository.save(cart);
+
+        return getCartByEmail(email);
+    }
+
     @Override
     @Transactional
     public void clearCartByEmail(String email) {
@@ -145,9 +179,6 @@ public class OrderServiceImpl implements IOrderService {
         cartRepository.save(cart);
     }
 
-    // ✅ FIX COMPLETO: ya no recibe un storeId único.
-    // Agrupamos los CartItem por la tienda que cada uno tiene asignada (item.getStore())
-    // y generamos UNA ORDEN + UN PAGO independiente por cada tienda.
     @Override
     @Transactional
     public List<OrderResponseDTO> placeOrderByEmail(String email, OrderRequestDTO request) {
@@ -162,13 +193,11 @@ public class OrderServiceImpl implements IOrderService {
             throw new ResourceNotFoundException("No puedes realizar una orden con el carrito vacío");
         }
 
-        // 1. Agrupar los items del carrito por tienda (cada CartItem ya conoce su Store real)
         Map<Long, List<CartItem>> itemsByStore = cart.getItems().stream()
                 .collect(Collectors.groupingBy(item -> item.getStore().getId()));
 
         List<Order> createdOrders = new ArrayList<>();
 
-        // 2. Por cada tienda, crear una Order independiente con sus propios items
         for (Map.Entry<Long, List<CartItem>> entry : itemsByStore.entrySet()) {
             Long storeId = entry.getKey();
             List<CartItem> storeItems = entry.getValue();
@@ -186,7 +215,6 @@ public class OrderServiceImpl implements IOrderService {
             List<OrderItem> orderItems = storeItems.stream()
                     .map(cartItem -> {
                         Product product = cartItem.getProduct();
-                        // Buscamos el inventario EN LA TIENDA REAL del cartItem, no en un storeId externo
                         Inventory inventory = inventoryRepository.findByProductIdAndStoreIdAndState(product.getId(), storeId, 1)
                                 .orElseThrow(() -> new ResourceNotFoundException(
                                         "El producto " + product.getName() + " no está disponible en la tienda " + store.getName()));
@@ -222,7 +250,6 @@ public class OrderServiceImpl implements IOrderService {
 
             Order savedOrder = orderRepository.save(order);
 
-            // 3. Crear un Payments independiente para CADA orden (Payments es @OneToOne con Order)
             Payments payments = Payments.builder()
                     .order(savedOrder)
                     .externalReference("PAY-" + UUID.randomUUID())
@@ -235,7 +262,6 @@ public class OrderServiceImpl implements IOrderService {
             createdOrders.add(savedOrder);
         }
 
-        // 4. Vaciar el carrito completo (todas las tiendas) una sola vez al final
         cart.getItems().clear();
         cartRepository.save(cart);
 
@@ -333,4 +359,31 @@ public class OrderServiceImpl implements IOrderService {
         return orderMapper.orderToOrderResponseDTO(order);
     }
 
+    // Helper interno para construir el DTO de respuesta del carrito, reutilizado
+    // por getCartByEmail / updateCartItemQuantity / removeItemFromCart
+    private CartResponseDTO buildCartResponse(Cart cart) {
+        List<CartItemResponseDTO> items = cart.getItems().stream()
+                .map(item -> {
+                    Inventory inventory = inventoryRepository.findByProductIdAndStoreId
+                                    (item.getProduct().getId(), item.getStore().getId())
+                            .orElseThrow(() -> new ResourceNotFoundException("El producto no está disponible en la tienda " + item.getStore().getName()));
+
+                    BigDecimal subtotal = inventory.getPrice()
+                            .multiply(new BigDecimal(item.getQuantity()));
+                    return new CartItemResponseDTO(
+                            item.getId(),
+                            item.getProduct().getName(),
+                            inventory.getPrice(),
+                            item.getQuantity(),
+                            subtotal,
+                            item.getProduct().getImageUrl()
+                    );
+                }).toList();
+
+        BigDecimal total = items.stream()
+                .map(CartItemResponseDTO::subtotal)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        return new CartResponseDTO(cart.getId(), items, total);
+    }
 }

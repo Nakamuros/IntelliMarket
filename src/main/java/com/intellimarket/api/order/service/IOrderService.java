@@ -10,11 +10,13 @@ public interface IOrderService {
     // Gestion del Carrito
     CartResponseDTO getCartByEmail(String email);
     CartResponseDTO addItemToCartByEmail(String email, AddToCartRequestDTO request);
+    // NUEVO: actualiza solo la cantidad de un CartItem existente, identificado por su propio id
+    CartResponseDTO updateCartItemQuantity(String email, Long itemId, UpdateCartItemRequestDTO request);
+    // NUEVO: faltaba la implementación; el frontend ya llamaba a este endpoint
+    CartResponseDTO removeItemFromCart(String email, Long itemId);
     void clearCartByEmail(String email);
 
     // Gestion de Ordenes
-    // FIX: ahora devuelve una LISTA porque un carrito multi-tienda
-    // genera una orden independiente por cada tienda involucrada.
     List<OrderResponseDTO> placeOrderByEmail(String email, OrderRequestDTO request);
     List<OrderResponseDTO> getOrderHistoryByEmail(String email);
     OrderResponseDTO getOrderById(Long orderId);
