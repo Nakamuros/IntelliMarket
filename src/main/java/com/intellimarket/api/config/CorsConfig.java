@@ -22,7 +22,7 @@ public class CorsConfig {
 
         // Especificamos los orígenes permitidos (inyectados desde properties/env)
         config.setAllowedOrigins(allowedOrigins);
-        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
 
         // En lugar de List.of("*") con allowCredentials, es mejor tipar las cabeceras estándar si da problemas,
         // o dejarlo así pero amarrado correctamente a Spring Security:

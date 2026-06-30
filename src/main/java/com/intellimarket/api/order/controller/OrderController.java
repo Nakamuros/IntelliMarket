@@ -37,6 +37,28 @@ public class OrderController {
                 .body(orderService.addItemToCartByEmail(email, request));
     }
 
+    // NUEVO: actualiza la cantidad de un item ya existente en el carrito.
+    // Solo necesita el id del CartItem (que ya viene en CartItemResponseDTO.id)
+    // y la nueva cantidad — no requiere productId ni storeId.
+    @PatchMapping("/cart/items/{itemId}")
+    @PreAuthorize("hasRole('CUSTOMER')")
+    public ResponseEntity<CartResponseDTO> updateCartItemQuantity(
+            Authentication authentication,
+            @PathVariable Long itemId,
+            @Valid @RequestBody UpdateCartItemRequestDTO request) {
+        String email = authentication.getName();
+        return ResponseEntity.ok(orderService.updateCartItemQuantity(email, itemId, request));
+    }
+
+    @DeleteMapping("/cart/items/{itemId}")
+    @PreAuthorize("hasRole('CUSTOMER')")
+    public ResponseEntity<CartResponseDTO> removeItemFromCart(
+            Authentication authentication,
+            @PathVariable Long itemId) {
+        String email = authentication.getName();
+        return ResponseEntity.ok(orderService.removeItemFromCart(email, itemId));
+    }
+
     @DeleteMapping("/cart/me")
     @PreAuthorize("hasRole('CUSTOMER')")
     public ResponseEntity<Void> clearCart(Authentication authentication) {
@@ -48,12 +70,10 @@ public class OrderController {
     //--Endpoint de ordenes--
     @PostMapping("/checkout")
     @PreAuthorize("hasRole('CUSTOMER')")
-    public ResponseEntity<OrderResponseDTO> placeOrder(
-            Authentication authentication,
-            @Valid @RequestBody OrderRequestDTO request) {
+    public ResponseEntity<List<OrderResponseDTO>> placeOrder(Authentication authentication) {
         String email = authentication.getName();
-        return ResponseEntity.status(HttpStatus.CREATED).
-                body(orderService.placeOrderByEmail(email, request));
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(orderService.placeOrderByEmail(email, new OrderRequestDTO()));
     }
 
     @GetMapping("/history")

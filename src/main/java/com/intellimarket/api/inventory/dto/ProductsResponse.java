@@ -10,5 +10,6 @@ public record ProductsResponse (
         BigDecimal unitPrice,
         Long id,
         Integer status,
-        String imageUrl
+        String imageUrl,
+        Long storeId
 ) {}

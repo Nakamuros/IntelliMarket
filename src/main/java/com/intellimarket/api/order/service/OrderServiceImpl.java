@@ -9,7 +9,6 @@ import com.intellimarket.api.order.mapper.OrderMapper;
 import com.intellimarket.api.order.model.*;
 import com.intellimarket.api.order.repository.*;
 import com.intellimarket.api.payments.dto.PaymentStatusRequest;
-import com.intellimarket.api.payments.dto.PaymentsRequest;
 import com.intellimarket.api.payments.dto.PaymentsResponse;
 import com.intellimarket.api.payments.mapper.PaymentsMapper;
 import com.intellimarket.api.payments.model.Method;
@@ -27,9 +26,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 
@@ -48,40 +45,16 @@ public class OrderServiceImpl implements IOrderService {
     private final PaymentsMapper paymentsMapper;
 
     @Override
-    //@Transactional(readOnly = true)
     @Transactional
     public CartResponseDTO getCartByEmail(String email) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado"));
-        
+
         Cart cart = cartRepository.findByUserId(user.getId())
                 .orElseGet(() -> cartRepository.save(Cart.builder().user(user).build()));
 
-        List<CartItemResponseDTO> items = cart.getItems().stream()
-                .map(item -> {
-                    Inventory inventory = inventoryRepository.findByProductIdAndStoreId
-                                    (item.getProduct().getId(), item.getStore().getId())
-                            .orElseThrow(() -> new ResourceNotFoundException("El producto no está disponible en la tienda " + item.getStore().getName()));
-
-                    BigDecimal subtotal = inventory.getPrice()
-                            .multiply(new BigDecimal(item.getQuantity()));
-                    return new CartItemResponseDTO(
-                            item.getId(),
-                            item.getProduct().getName(),
-                            inventory.getPrice(),
-                            item.getQuantity(),
-                            subtotal,
-                            item.getProduct().getImageUrl()
-                    );
-                }).toList();
-
-            BigDecimal total = items.stream()
-                    .map(CartItemResponseDTO::subtotal)
-                    .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-            return new CartResponseDTO(cart.getId(), items, total);
+        return buildCartResponse(cart);
     }
-
 
     @Override
     @Transactional
@@ -116,7 +89,7 @@ public class OrderServiceImpl implements IOrderService {
         if (existingItem.isPresent()) {
             CartItem item = existingItem.get();
             int newQuantity = item.getQuantity() + request.quantity();
-            
+
             if (newQuantity > inventory.getStock()) {
                 throw new InsufficientStockException("La cantidad total en el carrito supera el stock disponible.");
             }
@@ -137,12 +110,69 @@ public class OrderServiceImpl implements IOrderService {
         return getCartByEmail(email);
     }
 
+    // NUEVO: actualiza solo la cantidad de un CartItem ya existente.
+    // El itemId es el id propio del CartItem (item.getId() en CartItemResponseDTO),
+    // por lo que el frontend NO necesita conocer productId ni storeId para esta operación.
+    @Override
+    @Transactional
+    public CartResponseDTO updateCartItemQuantity(String email, Long itemId, UpdateCartItemRequestDTO request) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado"));
+
+        Cart cart = cartRepository.findByUserId(user.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("Carrito no encontrado"));
+
+        CartItem item = cart.getItems().stream()
+                .filter(i -> i.getId().equals(itemId))
+                .findFirst()
+                .orElseThrow(() -> new ResourceNotFoundException("El producto no se encuentra en tu carrito"));
+
+        // Validamos contra el stock real de la tienda asociada a ESE item específico
+        Inventory inventory = inventoryRepository.findByProductIdAndStoreIdAndState(
+                        item.getProduct().getId(), item.getStore().getId(), 1)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "El producto ya no está disponible en la tienda " + item.getStore().getName()));
+
+        if (request.quantity() > inventory.getStock()) {
+            throw new InsufficientStockException(
+                    "Solo hay " + inventory.getStock() + " unidades disponibles de " + item.getProduct().getName());
+        }
+
+        item.setQuantity(request.quantity());
+        cartRepository.save(cart);
+
+        return getCartByEmail(email);
+    }
+
+    // NUEVO: elimina un item del carrito por su propio id.
+    // El frontend (cart.service.ts) ya estaba llamando a este endpoint,
+    // pero no existía la implementación en el backend.
+    @Override
+    @Transactional
+    public CartResponseDTO removeItemFromCart(String email, Long itemId) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado"));
+
+        Cart cart = cartRepository.findByUserId(user.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("Carrito no encontrado"));
+
+        boolean removed = cart.getItems().removeIf(item -> item.getId().equals(itemId));
+
+        if (!removed) {
+            throw new ResourceNotFoundException("El producto no se encuentra en tu carrito");
+        }
+
+        cartRepository.save(cart);
+
+        return getCartByEmail(email);
+    }
+
     @Override
     @Transactional
     public void clearCartByEmail(String email) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado"));
-        
+
         Cart cart = cartRepository.findByUserId(user.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("Carrito no encontrado"));
         cart.getItems().clear();
@@ -151,81 +181,93 @@ public class OrderServiceImpl implements IOrderService {
 
     @Override
     @Transactional
-    public OrderResponseDTO placeOrderByEmail(String email, OrderRequestDTO request) {
+    public List<OrderResponseDTO> placeOrderByEmail(String email, OrderRequestDTO request) {
         User user = userRepository.findByEmail(email).orElseThrow(
                 () -> new ResourceNotFoundException("Usuario no encontrado")
         );
         Cart cart = cartRepository.findByUserId(user.getId()).orElseThrow(
-                ()-> new ResourceNotFoundException("Carrito no encontrado")
+                () -> new ResourceNotFoundException("Carrito no encontrado")
         );
-        
+
         if (cart.getItems().isEmpty()) {
             throw new ResourceNotFoundException("No puedes realizar una orden con el carrito vacío");
         }
 
-        Store store = storeRepository.findById(request.storeId()).orElseThrow(
-                () -> new ResourceNotFoundException("Tienda no encontrada")
-        );
+        Map<Long, List<CartItem>> itemsByStore = cart.getItems().stream()
+                .collect(Collectors.groupingBy(item -> item.getStore().getId()));
 
-        Order order = Order.builder()
-                .user(user)
-                .store(store)
-                .status("PENDING")
-                .totalAmount(BigDecimal.ZERO)
-                .build();
+        List<Order> createdOrders = new ArrayList<>();
 
+        for (Map.Entry<Long, List<CartItem>> entry : itemsByStore.entrySet()) {
+            Long storeId = entry.getKey();
+            List<CartItem> storeItems = entry.getValue();
 
-        List<OrderItem> orderItems = cart.getItems().stream()
-                .map(cartItem -> {
-                    Product product = cartItem.getProduct();
-                    Inventory inventory = inventoryRepository.findByProductIdAndStoreIdAndState(product.getId(), request.storeId(), 1)
-                            .orElseThrow(() -> new ResourceNotFoundException("El producto no está disponible en esta tienda"));
-                    
-                    if (inventory.getStock() <= 0) {
-                        throw new InsufficientStockException("El producto " + product.getName() + " está agotado.");
-                    }
+            Store store = storeRepository.findById(storeId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Tienda no encontrada"));
 
-                    if (inventory.getStock() < cartItem.getQuantity()) {
-                        throw new InsufficientStockException("Stock insuficiente para el producto: " + product.getName());
-                    }
+            Order order = Order.builder()
+                    .user(user)
+                    .store(store)
+                    .status("PENDING")
+                    .totalAmount(BigDecimal.ZERO)
+                    .build();
 
-                    inventory.setStock(inventory.getStock() - cartItem.getQuantity());
-                    inventoryRepository.save(inventory);
+            List<OrderItem> orderItems = storeItems.stream()
+                    .map(cartItem -> {
+                        Product product = cartItem.getProduct();
+                        Inventory inventory = inventoryRepository.findByProductIdAndStoreIdAndState(product.getId(), storeId, 1)
+                                .orElseThrow(() -> new ResourceNotFoundException(
+                                        "El producto " + product.getName() + " no está disponible en la tienda " + store.getName()));
 
-                    BigDecimal unitPrice = inventory.getPrice(); // Use store-specific price
-                    BigDecimal subtotal = unitPrice.multiply(new BigDecimal(cartItem.getQuantity()));
-                    
-                    return OrderItem.builder()
-                            .order(order)
-                            .product(product)
-                            .quantity(cartItem.getQuantity())
-                            .unitPrice(unitPrice)
-                            .subtotal(subtotal)
-                            .build();
-                }).collect(Collectors.toList());
+                        if (inventory.getStock() <= 0) {
+                            throw new InsufficientStockException("El producto " + product.getName() + " está agotado.");
+                        }
 
-        order.setItems(orderItems);
-        BigDecimal totalOrder = orderItems.stream()
-                .map(OrderItem::getSubtotal)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-        order.setTotalAmount(totalOrder);
+                        if (inventory.getStock() < cartItem.getQuantity()) {
+                            throw new InsufficientStockException("Stock insuficiente para el producto: " + product.getName());
+                        }
 
-        Order savedOrder = orderRepository.save(order);
-        // Payments
-        Payments payments = Payments.builder()
-                .order(savedOrder)
-                .externalReference("PAY-" + UUID.randomUUID())
-                .method(Method.CARD)
-                .status(PaymentStatus.PENDIENT.name())
-                .amount(totalOrder)
-                .build();
+                        inventory.setStock(inventory.getStock() - cartItem.getQuantity());
+                        inventoryRepository.save(inventory);
+
+                        BigDecimal unitPrice = inventory.getPrice();
+                        BigDecimal subtotal = unitPrice.multiply(new BigDecimal(cartItem.getQuantity()));
+
+                        return OrderItem.builder()
+                                .order(order)
+                                .product(product)
+                                .quantity(cartItem.getQuantity())
+                                .unitPrice(unitPrice)
+                                .subtotal(subtotal)
+                                .build();
+                    }).collect(Collectors.toList());
+
+            order.setItems(orderItems);
+            BigDecimal totalOrder = orderItems.stream()
+                    .map(OrderItem::getSubtotal)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            order.setTotalAmount(totalOrder);
+
+            Order savedOrder = orderRepository.save(order);
+
+            Payments payments = Payments.builder()
+                    .order(savedOrder)
+                    .externalReference("PAY-" + UUID.randomUUID())
+                    .method(Method.CARD)
+                    .status(PaymentStatus.PENDIENT.name())
+                    .amount(totalOrder)
+                    .build();
+            paymentsRepository.save(payments);
+
+            createdOrders.add(savedOrder);
+        }
 
         cart.getItems().clear();
         cartRepository.save(cart);
 
-        paymentsRepository.save(payments);
-
-        return orderMapper.orderToOrderResponseDTO(savedOrder);
+        return createdOrders.stream()
+                .map(orderMapper::orderToOrderResponseDTO)
+                .collect(Collectors.toList());
     }
 
     @Override
@@ -302,7 +344,7 @@ public class OrderServiceImpl implements IOrderService {
     public List<OrderResponseDTO> getOrderHistoryByEmail(String email) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado"));
-        
+
         List<Order> orders = orderRepository.findByUserIdOrderByCreatedAtDesc(user.getId());
         return orders.stream()
                 .map(orderMapper::orderToOrderResponseDTO)
@@ -317,4 +359,31 @@ public class OrderServiceImpl implements IOrderService {
         return orderMapper.orderToOrderResponseDTO(order);
     }
 
+    // Helper interno para construir el DTO de respuesta del carrito, reutilizado
+    // por getCartByEmail / updateCartItemQuantity / removeItemFromCart
+    private CartResponseDTO buildCartResponse(Cart cart) {
+        List<CartItemResponseDTO> items = cart.getItems().stream()
+                .map(item -> {
+                    Inventory inventory = inventoryRepository.findByProductIdAndStoreId
+                                    (item.getProduct().getId(), item.getStore().getId())
+                            .orElseThrow(() -> new ResourceNotFoundException("El producto no está disponible en la tienda " + item.getStore().getName()));
+
+                    BigDecimal subtotal = inventory.getPrice()
+                            .multiply(new BigDecimal(item.getQuantity()));
+                    return new CartItemResponseDTO(
+                            item.getId(),
+                            item.getProduct().getName(),
+                            inventory.getPrice(),
+                            item.getQuantity(),
+                            subtotal,
+                            item.getProduct().getImageUrl()
+                    );
+                }).toList();
+
+        BigDecimal total = items.stream()
+                .map(CartItemResponseDTO::subtotal)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        return new CartResponseDTO(cart.getId(), items, total);
+    }
 }
