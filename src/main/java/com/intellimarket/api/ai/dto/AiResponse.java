@@ -1,5 +1,7 @@
 package com.intellimarket.api.ai.dto;
 
 public record AiResponse(
-        String response
+        boolean success,
+        String summary,
+        String email
 ) {}

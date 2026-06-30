@@ -1,77 +1,97 @@
 package com.intellimarket.api.ai.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.intellimarket.api.ai.dto.AiRequest;
 import com.intellimarket.api.ai.dto.AiResponse;
 import com.intellimarket.api.ai.tool.ProductCartTool;
-import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
+import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
+
 @Service
-@RequiredArgsConstructor
+@Slf4j
 public class AiServiceImpl implements IAiService {
 
+    private final ChatClient chatClient;
     private final ProductCartTool productCartTool;
+    private final ChatMemory chatMemory;
+    private final ObjectMapper objectMapper; // Solución: usamos el ObjectMapper mapeado en tu AiConfig
+
+    public AiServiceImpl(ChatClient.Builder chatClientBuilder,
+                         ProductCartTool productCartTool,
+                         ChatMemory chatMemory,
+                         ObjectMapper objectMapper) {
+        this.chatClient = chatClientBuilder.build();
+        this.productCartTool = productCartTool;
+        this.chatMemory = chatMemory;
+        this.objectMapper = objectMapper;
+    }
 
     @Override
     public AiResponse procesarChatConAsistente(String email, AiRequest request) {
-        String mensajeMin = request.message().toLowerCase();
-        String respuestaTexto;
+        try {
+            String raw = chatClient.prompt()
+                    .system(buildSystemPrompt())
+                    .user(request.message())
+                    .tools(productCartTool)
+                    .advisors(
+                            MessageChatMemoryAdvisor.builder(chatMemory).build()
+                    )
+                    .advisors(a -> a.param("chat_memory_conversation_id", email))
+                    .call()
+                    .content();
 
-        // 1. INTENCIÓN: Consulta de Stock Real
-        if (mensajeMin.contains("stock") || mensajeMin.contains("available") || mensajeMin.contains("have") || mensajeMin.contains("check")) {
-
-            String productoBuscado = "";
-            Long storeId = 1L;
-
-            // Mapeamos rigurosamente la tienda según tu pgAdmin
-            if (mensajeMin.contains("volt")) {
-                productoBuscado = "Volt energizante"; // Nombre exacto en tu BD
-                storeId = 1L;
-            } else if (mensajeMin.contains("coke")) {
-                productoBuscado = "Coca-cola"; // Nombre exacto en tu BD
-                storeId = 2L;
-            } else if (mensajeMin.contains("cable")) {
-                productoBuscado = "Cable USB-C"; // Nombre exacto en tu BD
-                storeId = 2L;
-            } else if (mensajeMin.contains("sneakers") || mensajeMin.contains("nike")) {
-                productoBuscado = "Zapatillas Nike"; // Nombre exacto en tu BD
-                storeId = 3L;
-            } else if (mensajeMin.contains("yogurt") || mensajeMin.contains("gloria")) {
-                productoBuscado = "Yogurt Gloria"; // Nombre exacto en tu BD
-                storeId = 3L;
+            if (raw == null || raw.isBlank()) {
+                return new AiResponse(false, "El asistente no devolvió una respuesta válida.", email);
             }
 
-            if (!productoBuscado.isEmpty()) {
-                // LLAMADA 100% REAL A TU HERRAMIENTA DE BASE DE DATOS
-                respuestaTexto = productCartTool.verificarStockYDisponibilidad(productoBuscado, storeId);
-            } else {
-                respuestaTexto = "I'm sorry, I couldn't identify the product you are looking for in our stores.";
+            // Solución de parsing manual usando el ObjectMapper seguro de tu AiConfig
+            // Esto elimina la necesidad de heredar de BeanOutputConverter en tiempo de carga
+            try {
+                // Limpiamos posibles formatos markdown accidentales si OpenAI responde con ```json
+                String cleanJson = raw.replaceAll("```json", "").replaceAll("```", "").trim();
+                return objectMapper.readValue(cleanJson, AiResponse.class);
+            } catch (Exception parseException) {
+                log.error("Error al parsear el JSON de OpenAI. Contenido raw: {}", raw, parseException);
+                return new AiResponse(false, "El asistente no estructuró la respuesta correctamente.", email);
             }
 
-            // 2. INTENCIÓN: Agregar al Carrito (Usa tu Tool Real)
-        } else if (mensajeMin.contains("cart") || mensajeMin.contains("add")) {
-            Long idProducto = 1L;
-            Long idTienda = 1L;
-
-            // Identificamos qué producto quiere añadir al carrito para mandarle el ID correcto
-            if (mensajeMin.contains("coke") || mensajeMin.contains("coca")) {
-                idProducto = 2L; idTienda = 2L;
-            } else if (mensajeMin.contains("cable")) {
-                idProducto = 3L; idTienda = 2L;
-            } else if (mensajeMin.contains("sneakers") || mensajeMin.contains("nike")) {
-                idProducto = 4L; idTienda = 3L;
-            } else if (mensajeMin.contains("yogurt") || mensajeMin.contains("gloria")) {
-                idProducto = 5L; idTienda = 3L;
-            } else if (mensajeMin.contains("volt")) {
-                idProducto = 1L; idTienda = 1L; // Si este da error, confirma con tus compañeros qué ID tiene el Volt en su tabla 'products'
-            }
-
-            // Llamamos a tu herramienta pasándole los IDs correspondientes
-            respuestaTexto = productCartTool.agregarProductoAlCarrito(idProducto, 1, idTienda);
-        } else {
-            respuestaTexto = "Hello, I’m IntelliMarket's assistant. Would you like to check the stock of a product or add something to your cart?";
+        } catch (Exception e) {
+            log.error("Error en AiServiceImpl para el usuario={}", email, e);
+            return new AiResponse(false, "Ocurrió un error interno al procesar tu solicitud con el asistente.", email);
         }
+    }
 
-        return new AiResponse(respuestaTexto);
+    private String buildSystemPrompt() {
+        return """
+            Eres IntelliMarketAI, el asistente virtual inteligente de nuestro sistema de ventas.
+
+            IDENTIDAD:
+            - Nombre: IntelliMarketAI
+            - Idioma: Español
+            - Tono: Profesional, eficiente y cortés
+            - Fecha actual: %s
+
+            ROL:
+            - Ayudas a los usuarios a verificar el stock actual de productos en tiendas específicas y a gestionar sus carritos de compras agregando los productos que soliciten.
+
+            REGLAS ESTRICTAS:
+            1. SOLO responde utilizando datos reales obtenidos directamente de las herramientas asignadas.
+            2. NUNCA inventes nombres de productos, identificadores (IDs), tiendas ni cantidades de stock.
+            3. Si el producto solicitado no existe en la base de datos o el stock es insuficiente, indícalo con total transparencia.
+            4. Responde ÚNICAMENTE con una estructura JSON válida que contenga exactamente las llaves: "success" (boolean) y "summary" (string). 
+            5. NO incluyas textos introductorios, ni saludos fuera del JSON, ni bloques de formato markdown como ```json ... ```.
+
+            HERRAMIENTAS DISPONIBLES:
+            - verificarStockYDisponibilidad: Consulta el stock real de un producto usando su nombre y el ID de la tienda.
+            - agregarProductoAlCarrito: Añade ítems directamente al carrito del usuario utilizando el ID del producto, la cantidad y el ID de la tienda.
+
+            Ejemplo estricto de salida requerida:
+            {"success": true, "summary": "Aquí va tu respuesta redactada de forma amigable para el cliente."}
+            """.formatted(LocalDate.now());
     }
 }
