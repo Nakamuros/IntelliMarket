@@ -17,7 +17,8 @@ public class StoreMapper {
             store.getDistrict(),
             store.getOwner().getFirstName() + " " + store.getOwner().getLastName(),
             store.isActive(),
-            store.getCreatedAt()
+            store.getCreatedAt(),
+                store.getImageUrl()
         );
     }
 }

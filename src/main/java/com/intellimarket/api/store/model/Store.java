@@ -37,6 +37,9 @@ public class Store {
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
+    @Column(name = "image_url", columnDefinition = "TEXT")
+    private String imageUrl;
+
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();

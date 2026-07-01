@@ -33,6 +33,7 @@ public class StoreServiceImpl implements IStoreService {
             .name(request.name())
             .address(request.address())
             .district(request.district())
+                .imageUrl(request.imageUrl())
             .owner(owner)
             .isActive(true)
             .build();
@@ -73,6 +74,7 @@ public class StoreServiceImpl implements IStoreService {
         store.setName(request.name());
         store.setAddress(request.address());
         store.setDistrict(request.district());
+        store.setImageUrl(request.imageUrl());
 
         // Opcional: si en tu StoreRequest manejas el estado activo/inactivo podías mapearlo aquí.
         // Por ahora mantenemos los datos de identidad comercial que pasaste al crearla.

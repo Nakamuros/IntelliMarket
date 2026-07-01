@@ -9,5 +9,6 @@ public record StoreResponse(
     String district,
     String ownerName,
     boolean isActive,
-    LocalDateTime createdAt
+    LocalDateTime createdAt,
+    String imageUrl
 ) {}

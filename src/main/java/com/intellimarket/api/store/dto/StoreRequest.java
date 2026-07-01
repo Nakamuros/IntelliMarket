@@ -13,5 +13,7 @@ public record StoreRequest(
 
     @NotBlank(message = "El distrito es obligatorio")
     @Size(max = 50, message = "El distrito no puede exceder los 50 caracteres")
-    String district
+    String district,
+
+    String imageUrl
 ) {}
