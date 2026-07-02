@@ -6,7 +6,6 @@ import com.intellimarket.api.ai.dto.AiResponse;
 import com.intellimarket.api.ai.tool.ProductCartTool;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
-import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.stereotype.Service;
 
@@ -18,7 +17,6 @@ public class AiServiceImpl implements IAiService {
 
     private final ChatClient chatClient;
     private final ProductCartTool productCartTool;
-    private final ChatMemory chatMemory;
     private final ObjectMapper objectMapper; // Solución: usamos el ObjectMapper mapeado en tu AiConfig
 
     public AiServiceImpl(ChatClient.Builder chatClientBuilder,
@@ -27,7 +25,6 @@ public class AiServiceImpl implements IAiService {
                          ObjectMapper objectMapper) {
         this.chatClient = chatClientBuilder.build();
         this.productCartTool = productCartTool;
-        this.chatMemory = chatMemory;
         this.objectMapper = objectMapper;
     }
 
@@ -38,31 +35,24 @@ public class AiServiceImpl implements IAiService {
                     .system(buildSystemPrompt())
                     .user(request.message())
                     .tools(productCartTool)
-                    .advisors(
-                            MessageChatMemoryAdvisor.builder(chatMemory).build()
-                    )
-                    .advisors(a -> a.param("chat_memory_conversation_id", email))
                     .call()
                     .content();
 
             if (raw == null || raw.isBlank()) {
-                return new AiResponse(false, "El asistente no devolvió una respuesta válida.", email);
+                return new AiResponse(false, "El asistente no devolvió una respuesta válida.");
             }
 
-            // Solución de parsing manual usando el ObjectMapper seguro de tu AiConfig
-            // Esto elimina la necesidad de heredar de BeanOutputConverter en tiempo de carga
             try {
-                // Limpiamos posibles formatos markdown accidentales si OpenAI responde con ```json
                 String cleanJson = raw.replaceAll("```json", "").replaceAll("```", "").trim();
                 return objectMapper.readValue(cleanJson, AiResponse.class);
             } catch (Exception parseException) {
                 log.error("Error al parsear el JSON de OpenAI. Contenido raw: {}", raw, parseException);
-                return new AiResponse(false, "El asistente no estructuró la respuesta correctamente.", email);
+                return new AiResponse(false, "El asistente no estructuró la respuesta correctamente.");
             }
 
         } catch (Exception e) {
             log.error("Error en AiServiceImpl para el usuario={}", email, e);
-            return new AiResponse(false, "Ocurrió un error interno al procesar tu solicitud con el asistente.", email);
+            return new AiResponse(false, "Ocurrió un error interno al procesar tu solicitud con el asistente.");
         }
     }
 
