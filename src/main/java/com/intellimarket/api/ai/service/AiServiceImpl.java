@@ -77,8 +77,8 @@ public class AiServiceImpl implements IAiService {
             5. NO incluyas textos introductorios, ni saludos fuera del JSON, ni bloques de formato markdown como ```json ... ```.
 
             HERRAMIENTAS DISPONIBLES:
-            - verificarStockYDisponibilidad: Consulta el stock real de un producto usando su nombre y el ID de la tienda.
-            - agregarProductoAlCarrito: Añade ítems directamente al carrito del usuario utilizando el ID del producto, la cantidad y el ID de la tienda.
+            - verificarStockYDisponibilidad: Consulta el stock real de un producto usando su nombre y el nombre de la tienda.
+            - agregarProductoAlCarrito: Añade ítems al carrito del usuario utilizando el nombre del producto, la cantidad y el nombre de la tienda.
 
             Ejemplo estricto de salida requerida:
             {"success": true, "summary": "Aquí va tu respuesta redactada de forma amigable para el cliente."}
