@@ -2,6 +2,7 @@ package com.intellimarket.api.ai.controller;
 
 import com.intellimarket.api.ai.dto.AiRequest;
 import com.intellimarket.api.ai.dto.AiResponse;
+import com.intellimarket.api.ai.service.AiServiceImpl;
 import com.intellimarket.api.ai.service.IAiService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -9,6 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.security.Principal;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/ai")
@@ -27,5 +29,12 @@ public class AiController {
         AiResponse response = aiService.procesarChatConAsistente(emailReal, request);
 
         return ResponseEntity.ok(response);
+    }
+
+    // Endpoint pensado para que el FRONTEND pinte "sugerencias" (chips/botones)
+    // con ejemplos de mensajes, ya que el usuario final no usará Postman.
+    @GetMapping("/suggestions")
+    public ResponseEntity<List<String>> obtenerPromptsSugeridos() {
+        return ResponseEntity.ok(AiServiceImpl.PROMPTS_SUGERIDOS);
     }
 }

@@ -19,11 +19,21 @@ public interface InventoryRepository extends JpaRepository<Inventory, Long> {
 
     @Query(value = "SELECT i.* FROM inventory i " +
             "JOIN products p ON p.id = i.product_id " +
-            "WHERE LOWER(REPLACE(p.name, ' ', '-')) = LOWER(REPLACE(?1, ' ', '-')) " +
+            "WHERE unaccent(LOWER(REPLACE(p.name, ' ', '-'))) = unaccent(LOWER(REPLACE(?1, ' ', '-'))) " +
             "AND i.store_id = ?2",
             nativeQuery = true)
     Optional<Inventory> findByProductNameAndStoreId(
             String productName,
+            Long storeId
+    );
+
+    @Query(value = "SELECT i.* FROM inventory i " +
+            "JOIN products p ON p.id = i.product_id " +
+            "WHERE unaccent(LOWER(p.category)) = unaccent(LOWER(REPLACE(?1, ' ', '_'))) " +
+            "AND i.store_id = ?2",
+            nativeQuery = true)
+    List<Inventory> findByCategoryNameAndStoreId(
+            String categoryName,
             Long storeId
     );
 }

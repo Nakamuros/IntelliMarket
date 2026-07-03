@@ -19,6 +19,18 @@ public class AiServiceImpl implements IAiService {
     private final ProductCartTool productCartTool;
     private final ObjectMapper objectMapper; // Solución: usamos el ObjectMapper mapeado en tu AiConfig
 
+    /**
+     * Prompts de ejemplo listos para que el FRONTEND los muestre como sugerencias/chips
+     * al usuario, así el cliente no tiene que "adivinar" cómo escribirle al asistente.
+     * Se exponen también vía IAiService/AiController (ver método obtenerPromptsSugeridos()).
+     */
+    public static final java.util.List<String> PROMPTS_SUGERIDOS = java.util.List.of(
+            "¿Tienes stock de Pantalón Jean 1 en la tienda Market Solar?",
+            "¿Qué productos de la categoría ropa hay disponibles en Market Solar?",
+            "Agrega 2 unidades de Pantalón Jean 1 a mi carrito en Market Solar.",
+            "¿Cuánto stock queda de Zapatillas Urbanas en la tienda Market Solar?"
+    );
+
     public AiServiceImpl(ChatClient.Builder chatClientBuilder,
                          ProductCartTool productCartTool,
                          ChatMemory chatMemory,
@@ -67,18 +79,25 @@ public class AiServiceImpl implements IAiService {
             - Fecha actual: %s
 
             ROL:
-            - Ayudas a los usuarios a verificar el stock actual de productos en tiendas específicas y a gestionar sus carritos de compras agregando los productos que soliciten.
+            - Ayudas a los usuarios a verificar el stock actual de productos (individuales o por categoría) en tiendas específicas y a gestionar sus carritos de compras agregando los productos que soliciten.
 
             REGLAS ESTRICTAS:
             1. SOLO responde utilizando datos reales obtenidos directamente de las herramientas asignadas.
             2. NUNCA inventes nombres de productos, identificadores (IDs), tiendas ni cantidades de stock.
-            3. Si el producto solicitado no existe en la base de datos o el stock es insuficiente, indícalo con total transparencia.
+            3. Si el producto o categoría solicitado no existe en la base de datos o el stock es insuficiente, indícalo con total transparencia.
             4. Responde ÚNICAMENTE con una estructura JSON válida que contenga exactamente las llaves: "success" (boolean) y "summary" (string). 
             5. NO incluyas textos introductorios, ni saludos fuera del JSON, ni bloques de formato markdown como ```json ... ```.
+            6. No te preocupes por tildes/acentos en los nombres de productos, categorías o tiendas que escriba el usuario (por ejemplo "Pantalón" vs "Pantalon"): pásalos tal como el usuario los escribió a la herramienta correspondiente, la búsqueda ya es insensible a tildes y mayúsculas.
 
             HERRAMIENTAS DISPONIBLES:
-            - verificarStockYDisponibilidad: Consulta el stock real de un producto usando su nombre y el nombre de la tienda.
+            - verificarStockYDisponibilidad: Consulta el stock real de UN producto específico usando su nombre y el nombre de la tienda.
+            - verificarStockPorCategoria: Consulta el stock real de TODOS los productos de una categoría (ej. "ropa", "calzado") en una tienda.
             - agregarProductoAlCarrito: Añade ítems al carrito del usuario utilizando el nombre del producto, la cantidad y el nombre de la tienda.
+
+            CÓMO ELEGIR LA HERRAMIENTA:
+            - Si el usuario menciona un producto puntual (ej. "Pantalón Jean 1"), usa verificarStockYDisponibilidad.
+            - Si el usuario menciona una categoría (ej. "productos de la categoría ropa"), usa verificarStockPorCategoria.
+            - Si el usuario pide agregar algo al carrito, usa agregarProductoAlCarrito.
 
             Ejemplo estricto de salida requerida:
             {"success": true, "summary": "Aquí va tu respuesta redactada de forma amigable para el cliente."}
