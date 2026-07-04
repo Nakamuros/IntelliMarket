@@ -38,3 +38,6 @@ services:
       # sync: false => Render NO lo autocompleta; lo escribes tú.
       - key: CORS_ALLOWED_ORIGINS
         sync: false
+      - key: OLLAMA_API_KEY
+        sync: false
+      
